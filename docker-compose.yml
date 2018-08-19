@@ -1,0 +1,30 @@
+version: "2"
+services:
+  mysql:
+    image: mysql
+    environment:
+      MYSQL_RANDOM_ROOT_PASSWORD: 1
+      MYSQL_DATABASE: sukima
+      MYSQL_USER: sukima
+      MYSQL_PASSWORD: sukima
+    ports:
+      - "3306:3306"
+    volumes:
+      - .docker/mysql:/var/lib/mysql
+  postgres:
+    image: postgres
+    environment:
+      POSTGRES_USER: sukima
+      POSTGRES_PASSWORD: sukima
+      POSTGRES_DB: sukima
+    ports:
+      - "5432:5432"
+    volumes:
+      - .docker/postgres:/var/lib/postgresql/data
+ # mssql:
+ #   image: microsoft/mssql-server-linux
+ #   environment:
+ #     ACCEPT_EULA: Y
+ #     SA_PASSWORD: "!Passw0rd"
+ #   ports:
+ #     - "1433:1433"

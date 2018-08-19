@@ -4,5 +4,10 @@
   "main": "index.js",
   "repository": "https://github.com/deezus-net/sukima.git",
   "author": "deezus-net <info@deezus.net>",
-  "license": "MIT"
+  "license": "MIT",
+  "dependencies": {
+    "mysql": "^2.16.0",
+    "pg": "^7.4.3",
+    "tedious": "^2.6.4"
+  }
 }
