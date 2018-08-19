@@ -1,0 +1,8 @@
+{
+  "name": "sukima",
+  "version": "1.0.0",
+  "main": "index.js",
+  "repository": "https://github.com/deezus-net/sukima.git",
+  "author": "deezus-net <info@deezus.net>",
+  "license": "MIT"
+}
