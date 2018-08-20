@@ -4,9 +4,9 @@ services:
     image: mysql
     environment:
       MYSQL_RANDOM_ROOT_PASSWORD: 1
-      MYSQL_DATABASE: sukima
-      MYSQL_USER: sukima
-      MYSQL_PASSWORD: sukima
+      MYSQL_DATABASE: dac
+      MYSQL_USER: dac
+      MYSQL_PASSWORD: dac
     ports:
       - "3306:3306"
     volumes:
@@ -14,9 +14,9 @@ services:
   postgres:
     image: postgres
     environment:
-      POSTGRES_USER: sukima
-      POSTGRES_PASSWORD: sukima
-      POSTGRES_DB: sukima
+      POSTGRES_USER: dac
+      POSTGRES_PASSWORD: dac
+      POSTGRES_DB: dac
     ports:
       - "5432:5432"
     volumes:

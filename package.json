@@ -5,10 +5,21 @@
   "repository": "https://github.com/deezus-net/sukima.git",
   "author": "deezus-net <info@deezus.net>",
   "license": "MIT",
+  "bin": {
+    "dac": "index.js"
+  },
   "dependencies": {
+    "commander": "^2.17.1",
     "js-yaml": "^3.12.0",
     "mysql": "^2.16.0",
     "pg": "^7.4.3",
     "tedious": "^2.6.4"
+  },
+  "devDependencies": {
+    "@types/js-yaml": "^3.11.2",
+    "@types/mysql": "^2.15.5",
+    "@types/pg": "^7.4.10",
+    "@types/tedious": "^2.6.1",
+    "typescript": "^3.0.1"
   }
 }
