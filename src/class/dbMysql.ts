@@ -11,33 +11,36 @@ export class DbMysql implements DbInterface {
                 host: dbHost.host,
                 user: dbHost.user,
                 password: dbHost.password,
-                database: dbHost.dataBase,
+                database: dbHost.database,
             });
             con.connect();
-          //  console.log(con)
-        }catch (e) {
+            //  console.log(con)
+        } catch (e) {
             console.log(e);
         }
     }
 
-    public create = () => {
+    public create(db: Db) {
 
-    };
-    
-    public diff = () => {
+    }
 
-    };
-    
-    public extract = () => {
+    public diff(db: Db) {
+
+    }
+
+    public extract() {
         return null;
     }
-    public query = () => {
+    
+    public query(db: Db) {
         return '';
     }
-    public reCreate = () => {
+    
+    public reCreate(db: Db) {
 
     }
-    public update = () => {
+    
+    public update(db: Db) {
 
     }
 }

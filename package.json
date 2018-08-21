@@ -6,10 +6,25 @@
   "author": "deezus-net <info@deezus.net>",
   "license": "MIT",
   "scripts": {
-    "watch": "tsc --watch"
+    "watch": "tsc --watch",
+    "test": "jest"
   },
   "bin": {
     "dac": "index.js"
+  },
+  "jest": {
+    "moduleFileExtensions": [
+      "ts",
+      "tsx",
+      "js"
+    ],
+    "transform": {
+      "\\.(ts|tsx)$": "ts-jest"
+    },
+    "testMatch": [
+      "**/*.spec.ts?(x)"
+    ],
+    "collectCoverage": true
   },
   "dependencies": {
     "commander": "^2.17.1",
@@ -19,10 +34,13 @@
     "tedious": "^2.6.4"
   },
   "devDependencies": {
+    "@types/jest": "^23.3.1",
     "@types/js-yaml": "^3.11.2",
     "@types/mysql": "^2.15.5",
     "@types/pg": "^7.4.10",
     "@types/tedious": "^2.6.1",
+    "jest": "^23.5.0",
+    "ts-jest": "^23.1.4",
     "tslint": "^5.11.0",
     "typescript": "^3.0.1"
   }

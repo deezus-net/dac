@@ -15,7 +15,10 @@
     ],
     "no-console": false,
     "eofline": false,
-    "object-literal-sort-keys": false
+    "object-literal-sort-keys": false,
+    "no-trailing-whitespace": false,
+    "trailing-comma": false,
+    "no-empty": false
   },
   "rulesDirectory": []
 }

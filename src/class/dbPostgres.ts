@@ -4,40 +4,54 @@ import {DbHost} from '../interfaces/dbHost';
 import {DbInterface} from '../interfaces/dbInterface';
 
 export class DbPostgres implements DbInterface {
+    private client: Client;
+
     constructor(dbHost: DbHost) {
-        console.log(dbHost.database);
         try {
-            const client = new Client({
+            this.client = new Client({
                 user: dbHost.user,
                 host: dbHost.host,
                 database: dbHost.database,
                 password: dbHost.password
             });
-            console.log(client);
-            client.connect();
-        }catch (e) {
+        } catch (e) {
             console.log(e);
         }
     }
 
-    public create = () => {
+    public async create() {
 
-    };
+    }
 
-    public diff = () => {
+    public async diff(db: Db) {
 
-    };
+    }
 
-    public extract = () => {
+    public extract() {
         return null;
     }
-    public query = () => {
+    
+    public query(db: Db) {
         return '';
     }
-    public reCreate = () => {
+    
+    public async reCreate(db: Db) {
 
     }
-    public update = () => {
+    
+    public async update(db: Db) {
 
+    }
+
+    /**
+     * execute query
+     * @param {string} query
+     * @returns {Promise<QueryResult>}
+     */
+    public async exec(query: string) {
+        await this.client.connect();
+        const res = await this.client.query(query);
+        await this.client.end();
+        return res;
     }
 }

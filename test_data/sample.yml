@@ -1,0 +1,17 @@
+tables:
+  users:
+    columns:
+      id:
+        type: int
+        id: true
+        pk: true
+      name:
+        type: varchar
+        length: 100
+        notNull: true
+      age:
+        type: int
+    indexes:
+      name:
+        columns:
+          name: asc
