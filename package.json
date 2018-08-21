@@ -5,6 +5,9 @@
   "repository": "https://github.com/deezus-net/sukima.git",
   "author": "deezus-net <info@deezus.net>",
   "license": "MIT",
+  "scripts": {
+    "watch": "tsc --watch"
+  },
   "bin": {
     "dac": "index.js"
   },
