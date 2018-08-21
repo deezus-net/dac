@@ -63,3 +63,5 @@ typings/
 .docker
 yarn.lock
 .vscode
+.idea
+*.sln

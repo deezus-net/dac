@@ -2,3 +2,4 @@
 import { Args } from './args';
 let hosts = (new Args()).parse(process.argv);
 console.log(hosts);
+
