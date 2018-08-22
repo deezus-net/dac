@@ -20,7 +20,8 @@
     "trailing-comma": false,
     "no-empty": false,
     "no-string-literal": false,
-    "forin": false
+    "forin": false,
+    "object-literal-shorthand": false
   },
   "rulesDirectory": []
 }

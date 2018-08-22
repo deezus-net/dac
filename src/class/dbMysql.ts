@@ -1,7 +1,11 @@
-import {createConnection} from 'mysql';
+import {createConnection} from 'mysql2';
 import {Db} from '../interfaces/db';
 import {DbHost} from '../interfaces/dbHost';
 import {DbInterface} from '../interfaces/dbInterface';
+
+import * as iconv from 'iconv-lite';
+import encodings from 'iconv-lite/encodings';
+iconv.encodings = encodings;
 
 export class DbMysql implements DbInterface {
     constructor(dbHost: DbHost) {
@@ -12,6 +16,10 @@ export class DbMysql implements DbInterface {
                 user: dbHost.user,
                 password: dbHost.password,
                 database: dbHost.database,
+                insecureAuth: true,
+                charset: 'utf8',
+                encoding: 'utf8'
+               
             });
             con.connect();
             //  console.log(con)

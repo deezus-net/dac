@@ -19,15 +19,30 @@ describe('DbPostgres', () => {
         
     });
 
-  /*  it('exec', async () => {
-        const res = await pg.exec('SELECT NOW() AS time');
-        expect(res.rows.length).toEqual(1);
-    });*/
     
-    it('query', async () => {
+    it.skip('query', async () => {
        const query = pg.query(db);
        console.log(query);
        await pg.exec(query);
+    });
+
+    it.skip('create', async () => {
+        const res = await pg.create(db);
+        expect(res).toBeTruthy();
+        
+    });
+
+    it.skip('reCreate', async () => {
+        const res = await pg.reCreate(db);
+        expect(res).toBeTruthy();
+
+    });
+    
+    it('extract', async () => {
+       const res = await pg.extract();
+       const text = yaml.safeDump(res);
+       console.log(text);
+       
     });
     
     afterAll(() => {
