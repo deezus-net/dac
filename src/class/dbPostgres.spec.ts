@@ -4,6 +4,7 @@ import {promisify} from 'util';
 import {Db} from '../interfaces/db';
 import {DbHost} from '../interfaces/dbHost';
 import { DbPostgres } from './dbPostgres';
+import {dbToYaml} from './utility';
 
 describe('DbPostgres', () => {
     let pg;
@@ -39,10 +40,10 @@ describe('DbPostgres', () => {
     });
     
     it('extract', async () => {
-       const res = await pg.extract();
-       const text = yaml.safeDump(res);
-       console.log(text);
-       
+        const res = await pg.extract();
+        const text = dbToYaml(res);
+        console.log(text);
+
     });
     
     afterAll(() => {
