@@ -5,6 +5,6 @@ export interface DbInterface {
     query: (db: Db) => string;
     create: (db: Db) => Promise<boolean>;
     reCreate: (db: Db) => Promise<boolean>;
-    update: (db: Db) => void;
+    update: (db: Db) => Promise<boolean>;
     diff: (db: Db) => void;
 }

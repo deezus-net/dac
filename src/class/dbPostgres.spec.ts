@@ -22,29 +22,43 @@ describe('DbPostgres', () => {
 
     
     it.skip('query', async () => {
+        await pg.connect();
        const query = pg.query(db);
        console.log(query);
        await pg.exec(query);
+        await pg.end();
     });
 
     it.skip('create', async () => {
+        await pg.connect();
         const res = await pg.create(db);
         expect(res).toBeTruthy();
+        await pg.end();
         
     });
 
     it.skip('reCreate', async () => {
+        await pg.connect();
         const res = await pg.reCreate(db);
         expect(res).toBeTruthy();
+        await pg.end();
 
     });
     
-    it('extract', async () => {
+    it.skip('extract', async () => {
+        await pg.connect();
         const res = await pg.extract();
         const text = dbToYaml(res);
         console.log(text);
+        await pg.end();
 
     });
+    
+    it ('update', async () => {
+        await pg.connect();
+        const res = await pg.update(db);
+        await pg.end();
+    }); 
     
     afterAll(() => {
         

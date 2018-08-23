@@ -8,7 +8,7 @@ export interface DbColumn {
     id?: boolean;
     notNull?: boolean;
     check?: string;
-    foreginKey?: { [key: string]: DbForeignKey };
+    foreignKey?: { [key: string]: DbForeignKey };
     default?: string;
     comment?: string;
 }
