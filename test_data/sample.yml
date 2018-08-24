@@ -9,28 +9,34 @@ tables:
         type: varchar
         length: 100
         notNull: true
-      age:
-        type: int
+  #    age:
+  #      type: int
+  #      notNull: true
       user_group_id:
         type: int
   #      foreignKey:
   #        user_groups.id:
   #          update: 'cascade'
   #          delete: ''
+      address:
+        type: text
     indexes:
-      name:
+      ix_name:
         columns:
           name: asc
-  #user_groups:
-  #  columns:
-  #    id:
-  ##      id: true
-  #    name:
-  #      type: varchar
-  #      length: 100
-  #      notNull: true
-  #  indexes:
-  #    ix:
-  #      columns: 
-  #        name: asc
+      ix_address:
+        columns:
+          address: desc
+  user_groups:
+    columns:
+      id:
+        id: true
+      name:
+        type: varchar
+        length: 100
+        notNull: true
+    indexes:
+      ix:
+        columns: 
+          name: asc
           

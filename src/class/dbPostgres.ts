@@ -5,7 +5,7 @@ import {DbInterface} from '../interfaces/dbInterface';
 import {DbTable} from '../interfaces/dbTable';
 import {ColumnType} from './columnType';
 import {DbColumn} from '../interfaces/dbColumn';
-import {equalColumn, equalIndex} from './utility'
+import {checkDbDiff, equalColumn, equalIndex} from './utility'
 import ObjectContaining = jasmine.ObjectContaining;
  
 export class DbPostgres implements DbInterface {
@@ -48,8 +48,10 @@ export class DbPostgres implements DbInterface {
         return true;
     }
 
+    
     public async diff(db: Db) {
-
+        const orgDb = await this.extract();
+        return checkDbDiff(orgDb, db);
     }
 
     public async extract() {

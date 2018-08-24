@@ -4,7 +4,7 @@ import {promisify} from 'util';
 import {Db} from '../interfaces/db';
 import {DbHost} from '../interfaces/dbHost';
 import { DbPostgres } from './dbPostgres';
-import {dbToYaml} from './utility';
+import {dbToYaml, yamlToDb} from './utility';
 
 describe('DbPostgres', () => {
     let pg;
@@ -16,7 +16,9 @@ describe('DbPostgres', () => {
         pg = new DbPostgres(hosts['postgres']);
         
         const dbText = await promisify(fs.readFile)('./test_data/sample.yml', 'utf8');
-        db = yaml.safeLoad(dbText) as Db;
+        db = yamlToDb(dbText);
+        
+      //  db = yaml.safeLoad(dbText) as Db;
         
     });
 
@@ -54,12 +56,18 @@ describe('DbPostgres', () => {
 
     });
     
-    it ('update', async () => {
+    it.skip ('update', async () => {
         await pg.connect();
         const res = await pg.update(db);
         await pg.end();
-    }); 
-    
+    });
+
+    it ('diff', async () => {
+        await pg.connect();
+        const res = await pg.diff(db);
+        await pg.end();
+    });
+
     afterAll(() => {
         
     });
