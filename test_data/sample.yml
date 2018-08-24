@@ -11,7 +11,26 @@ tables:
         notNull: true
       age:
         type: int
+      user_group_id:
+        type: int
+  #      foreignKey:
+  #        user_groups.id:
+  #          update: 'cascade'
+  #          delete: ''
     indexes:
       name:
         columns:
           name: asc
+  #user_groups:
+  #  columns:
+  #    id:
+  ##      id: true
+  #    name:
+  #      type: varchar
+  #      length: 100
+  #      notNull: true
+  #  indexes:
+  #    ix:
+  #      columns: 
+  #        name: asc
+          

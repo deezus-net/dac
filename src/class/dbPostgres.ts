@@ -514,9 +514,9 @@ export class DbPostgres implements DbInterface {
                     if (!orgTable.columns[colName].foreignKey) {
                         continue;
                     }
-                    for (const fk in Object.keys(orgTable.columns[colName].foreignKey).filter(f => fks.indexOf(f) === -1)) {
+                    for (const fk of Object.keys(orgTable.columns[colName].foreignKey).filter(f => fks.indexOf(f) === -1)) {
                         const query = `
-                            ALTER TABLE "${tableName}" DROP CONSTRAINT "${fk}";
+                            ALTER TABLE "${tableName}" DROP CONSTRAINT "${orgTable.columns[colName].foreignKey[fk].name}";
                         `;
                         await this.client.query(query);
                         change++;
@@ -535,8 +535,8 @@ export class DbPostgres implements DbInterface {
 
         }
 
-        // drip tables
-        for (const tableName in Object.keys(currentDb.tables).filter(t => Object.keys(db.tables).indexOf(t) === -1)) {
+        // drop tables
+        for (const tableName of Object.keys(currentDb.tables).filter(t => Object.keys(db.tables).indexOf(t) === -1)) {
             const query = `
                 DROP TABLE "${tableName}" CASCADE
             `;
@@ -578,6 +578,6 @@ export class DbPostgres implements DbInterface {
         return `
             ALTER TABLE 
                 "${table}" 
-            ADD FOREIGN KEY ("${column}") REFERENCES "${foreginTable}"("${foreginColumn}")${onupdate}${ondelete};`;
+            ADD CONSTRAINT "fk_${table}_${column}" FOREIGN KEY ("${column}") REFERENCES "${foreginTable}"("${foreginColumn}")${onupdate}${ondelete};`;
     }
 }
