@@ -21,6 +21,9 @@ export const dbToYaml = (db: Db) => {
             if (!db.tables[tableName].columns[columnName].id) {
                 delete db.tables[tableName].columns[columnName].id;
             }
+            if (!db.tables[tableName].columns[columnName].pk) {
+                delete db.tables[tableName].columns[columnName].pk;
+            }
         }
     }
     return yaml.safeDump(db);

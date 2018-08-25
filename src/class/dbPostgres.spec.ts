@@ -7,7 +7,7 @@ import { DbPostgres } from './dbPostgres';
 import {dbToYaml, yamlToDb} from './utility';
 
 describe('DbPostgres', () => {
-    let pg;
+    let pg: DbPostgres;
     let db;
     
     beforeAll(async () => {

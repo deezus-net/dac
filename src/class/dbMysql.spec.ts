@@ -37,7 +37,7 @@ describe('dbMysql', () => {
 
     });
 
-    it('reCreate', async () => {
+    it.skip('reCreate', async () => {
             await mysql.connect();
         const res = await mysql.reCreate(db);
         expect(res).toBeTruthy();
@@ -46,6 +46,7 @@ describe('dbMysql', () => {
     });
 
     it.skip('extract', async () => {
+        await mysql.connect();
         const res = await mysql.extract();
         const text = dbToYaml(res);
         console.log(text);
@@ -58,7 +59,7 @@ describe('dbMysql', () => {
         await mysql.end();
     });
 
-    it.skip ('diff', async () => {
+    it ('diff', async () => {
         await mysql.connect();
         const res = await mysql.diff(db);
         await mysql.end();
