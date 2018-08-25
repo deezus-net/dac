@@ -29,15 +29,16 @@ describe('dbMysql', () => {
     });
 
     
-    it('create', async () => {
+    it.skip('create', async () => {
+        await mysql.connect();
         const res = await mysql.create(db);
         expect(res).toBeTruthy();
         await mysql.end();
 
     });
 
-    it.skip('reCreate', async () => {
-
+    it('reCreate', async () => {
+            await mysql.connect();
         const res = await mysql.reCreate(db);
         expect(res).toBeTruthy();
         await mysql.end();

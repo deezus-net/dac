@@ -1,38 +1,38 @@
-import * as mysql from 'mysql';
+import * as mysql from 'promise-mysql';
 import {Db} from '../interfaces/db';
 import {DbHost} from '../interfaces/dbHost';
 import {DbInterface} from '../interfaces/dbInterface';
 import {DbTable} from '../interfaces/dbTable';
-import ObjectContaining = jasmine.ObjectContaining;
 import * as util from 'util';
+import ObjectContaining = jasmine.ObjectContaining;
 
 export class DbMysql implements DbInterface {
     
-    private pool;
+    private connection: mysql.Connection;
+    private dbHost: DbHost;
+    
     constructor(dbHost: DbHost) {
-        try {
-            this.pool = mysql.createPool({
-                host: dbHost.host,
-                user: dbHost.user,
-                password: dbHost.password,
-                database: dbHost.database,
-            });
-            this.pool.query = util.promisify(this.pool.query)
-
-        } catch (e) {
-            console.log(e);
-        }
+        this.dbHost = dbHost;
+    }
+    
+    public async connect(){
+        this.connection = await mysql.createConnection({
+            host: this.dbHost.host,
+            user: this.dbHost.user,
+            password: this.dbHost.password,
+            database: this.dbHost.database,
+            multipleStatements: true,
+            
+        });
     }
 
     public async end(){
-        await this.pool.end();
+        await this.connection.end();
     }
 
     public async create(db: Db) {
         const query = this.createQuery(db.tables);
-        
-        console.log(query);
-        await this.pool.query(query);
+        await this.connection.query(query);
         return true;
     }
 
@@ -122,7 +122,6 @@ export class DbMysql implements DbInterface {
 
 
         // foregin key
-        
         for (const tableName of Object.keys(tables))
         {
             const table = tables[tableName];
@@ -144,87 +143,30 @@ export class DbMysql implements DbInterface {
         
     }
     
-    public async test() {
-
-      //  var q = util.promisify(this.pool.query);
-        const data = await this.pool.query('SELECT NOW()');
-        console.log(data);
-        
-console.log('cxxxx')
-//        return true;
-        /*
-        this.connection.connect((e) => {
-            console.log(e);
-
-
-            /*this.connection.query('show tables', (e, d) => {
-                console.log(e);
-                console.log(d)
-            });*/
-     //   });
-        this.pool.end((e) => {
-            console.log(e);
-        });
-        return true;
-    }
+   
     
     public async reCreate(db: Db) {
-        try {
-        //    const query = this.createQuery(db.tables);
-         //   const trn = this.connection.beginTransaction();
-            
-            const data = await this.pool.query('show tables');
-            console.log(data);
-            
-           // console.log(data);
-           // await this.connection.query('COMMIT;');
-        }
-        catch (e) {
-            console.log(e)
-        }
-return true;
-        /*
+        const trn = await this.connection.beginTransaction();
+        console.log(trn);
+        const tables = [];
+        const data = await this.connection.query('show tables');
+        for (const row of data){
+            tables.push(data[0][Object.keys(row)[0]]);
+        } 
         
-        using (var con = Connection)
-        {
-            using (var trn = con.BeginTransaction())
-            {
-                // get table list
-                var tables = new Dictionary<string, DbTable>();
-                using (var cmd = new MySqlCommand("show tables", trn.Connection, trn))
-                {
-                    using (var reader = cmd.ExecuteReader())
-                    {
-                        while (reader.Read())
-                        {
-                            tables.Add(reader.GetString(0), new DbTable());
-                        }
-                    }
-                }
-                // drop exist tables
-                using (var cmd = new MySqlCommand("", trn.Connection, trn))
-                {
-                    var drop = new List<string>
-                        {
-                            "SET FOREIGN_KEY_CHECKS = 0;",
-                            $"DROP TABLE {string.Join(",", tables.Keys.Select(t => $"`{t}`"))};",
-                            "SET FOREIGN_KEY_CHECKS = 1;"
-                        };
-
-                    cmd.CommandText = string.Join("\r\n", drop);
-                    cmd.ExecuteNonQuery();
-                }
-
-
-                using (var cmd = new MySqlCommand(query, trn.Connection, trn))
-                {
-                    cmd.ExecuteNonQuery();
-                }
-
-                trn.Commit();
-            }
-        }*/
-
+        if (tables.length > 0) {
+            let query = `
+                SET FOREIGN_KEY_CHECKS = 0;
+                DROP TABLE ${tables.map(t => `\`${t}\``).join(',')};
+                SET FOREIGN_KEY_CHECKS = 1;
+            `;
+            await this.connection.query(query);
+        }
+        
+        const query = this.createQuery(db.tables);
+        await this.connection.query(query);
+        await this.connection.commit();
+        return true;
 
     }
     

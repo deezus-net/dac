@@ -14,10 +14,10 @@ tables:
         notNull: true
       user_group_id:
         type: int
-        foreignKey:
-          user_groups.id:
-            update: 'cascade'
-            delete: ''
+  #      foreignKey:
+  #        user_groups.id:
+  #          update: 'cascade'
+  #          delete: ''
       address:
         type: text
     indexes:
@@ -28,16 +28,16 @@ tables:
     #    columns:
     #      address: desc
     # mysqlではtextなどにインデックスを張る場合length(<=255)の指定が必要
-  user_groups:
-    columns:
-      id:
-        id: true
-      name:
-        type: varchar
-        length: 100
-        notNull: true
-    indexes:
-      ix:
-        columns: 
-          name: asc
+  #user_groups:
+  #  columns:
+  #    id:
+  #      id: true
+  ##    name:
+  #      type: varchar
+  #      length: 100
+  #      notNull: true
+  #  indexes:
+  #    ix:
+  #      columns: 
+  #        name: asc
           
