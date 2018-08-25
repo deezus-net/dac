@@ -6,7 +6,6 @@ import {DbTable} from '../interfaces/dbTable';
 import {ColumnType} from './columnType';
 import {DbColumn} from '../interfaces/dbColumn';
 import {checkDbDiff, equalColumn, equalIndex} from './utility'
-import ObjectContaining = jasmine.ObjectContaining;
  
 export class DbPostgres implements DbInterface {
     private client: Client;

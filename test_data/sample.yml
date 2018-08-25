@@ -9,24 +9,25 @@ tables:
         type: varchar
         length: 100
         notNull: true
-  #    age:
-  #      type: int
-  #      notNull: true
+      age:
+        type: int
+        notNull: true
       user_group_id:
         type: int
-  #      foreignKey:
-  #        user_groups.id:
-  #          update: 'cascade'
-  #          delete: ''
+        foreignKey:
+          user_groups.id:
+            update: 'cascade'
+            delete: ''
       address:
         type: text
     indexes:
       ix_name:
         columns:
           name: asc
-      ix_address:
-        columns:
-          address: desc
+    #  ix_address:
+    #    columns:
+    #      address: desc
+    # mysqlではtextなどにインデックスを張る場合length(<=255)の指定が必要
   user_groups:
     columns:
       id:
