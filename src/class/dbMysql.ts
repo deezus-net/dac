@@ -4,7 +4,8 @@ import {DbHost} from '../interfaces/dbHost';
 import {DbInterface} from '../interfaces/dbInterface';
 import {DbTable} from '../interfaces/dbTable';
 import {DbColumn} from '../interfaces/dbColumn';
-import {checkDbDiff} from './utility';
+import {checkDbDiff, equalColumn, equalIndex} from './utility';
+
 
 export class DbMysql implements DbInterface {
     
@@ -51,7 +52,7 @@ export class DbMysql implements DbInterface {
                 indexes: {}
             };
         }
-        
+        console.log(tables);
         for (const tableName of Object.keys(tables)) {
             // get column list
             for (const row of await this.connection.query(`DESCRIBE ${tableName}`)) {
@@ -117,9 +118,11 @@ export class DbMysql implements DbInterface {
                         t.TABLE_NAME = ? 
                     AND
                         t.CONSTRAINT_TYPE = 'FOREIGN KEY'`;
+            console.log(this.dbHost.database, tableName);
             for (const row of await this.connection.query(query, [this.dbHost.database, tableName])) {
 
                 const columnName = row['column_name'];
+                console.log(columnName);
                 if (!tables[tableName].columns[columnName].foreignKey) {
                     tables[tableName].columns[columnName].foreignKey = {};
                 }
@@ -240,7 +243,7 @@ export class DbMysql implements DbInterface {
                 for (const fkName of Object.keys(column.foreignKey))
                 {
                     const fk = column.foreignKey[fkName];
-                    query.push(this.createAlterForeignKey(tableName, columnName, fkName, fk.update, fk.delete, tables));
+                    query.push(DbMysql.createAlterForeignKey(tableName, columnName, fkName, fk.update, fk.delete, tables));
                 }
 
             }
@@ -277,13 +280,201 @@ export class DbMysql implements DbInterface {
         return true;
 
     }
-    
-    public update(db: Db) {
+
+    /**
+     * 
+     * @param {Db} db
+     * @returns {Promise<void>}
+     */
+    public async update(db: Db) {
+        const trn = await this.connection.beginTransaction();
+        const currentDb = await this.extract();
+
+        let change = 0;
+
+        // foregin key indexes
+        const fkIndexes: string[] = [];
+        for (const tableName of Object.keys(db.tables)) {
+            const table = db.tables[tableName];
+            for (const columnName of Object.keys(table.columns).filter(c => table.columns[c].foreignKey)) {
+                fkIndexes.push(`${tableName}.${columnName}`);
+                for (const fk of Object.keys(table.columns[columnName].foreignKey)) {
+                    fkIndexes.push(fk);
+                }
+            }
+        }
+
+        for (const tableName of Object.keys(db.tables)) {
+            const table = db.tables[tableName];
+
+            const orgTable = currentDb.tables[tableName];
+
+            if (orgTable) {
+                // alter
+                for (const columnName of Object.keys(table.columns)) {
+                    const col = table.columns[columnName];
+                    const orgCol = orgTable.columns[columnName];
+
+                    const notNull = col.notNull ? ' NOT NULL ' : ' NULL ';
+                    const def = col.default ? ` DEFAULT ${col.default} ` : '';
+                    const type = (col.id ? 'int' : col.type) + (col.length > 0 ? `(${col.length})` : '');
+
+                    if (!orgCol) {
+                        // add column
+                        const query = `
+                                ALTER TABLE 
+                                    \`${tableName}\` 
+                                ADD COLUMN \`${columnName}\` ${type}${ (col.id ? ' AUTO_INCREMENT' : '')}${notNull}${def}`;
+                        await this.connection.query(query);
+                        change++;
+
+                    } else if (!equalColumn(col, orgCol)) {
+                        // if change execute alter
+                        const query = `
+                                ALTER TABLE 
+                                    \`${tableName}\`
+                                MODIFY \`${columnName}\` ${type}${(col.id ? ' AUTO_INCREMENT' : '')}${notNull}${def}`;
+                        console.log(query);
+                        await this.connection.query(query);
+                        change++;
+                    }
+                }
+
+                for (const delCol of Object.keys(orgTable.columns).filter(oc => Object.keys(table.columns).indexOf(oc) === -1)) {
+                    const query = `
+                                ALTER TABLE 
+                                    \`${tableName}\` 
+                                DROP COLUMN \`${delCol}\``;
+                    console.log(query)
+                    await this.connection.query(query);
+                    change++;
+                }
+
+
+                for (const indexName in table.indexes) {
+                    const orgIndex = orgTable.indexes[indexName];
+                    const index = table.indexes[indexName];
+
+                    if (!orgIndex) {
+                        // add index
+                        const query = `
+                                ALTER TABLE 
+                                    \`${tableName}\`
+                                ADD ${(index.unique ? 'UNIQUE ' : '')}INDEX \`${indexName}\` (${Object.keys(index.columns).map(c => `\`${c}\` ${index.columns[c]}`)})`;
+                        await this.connection.query(query);
+                        change++;
+
+                    } else if (!equalIndex(index, orgIndex)) {
+                        // if change execute alter
+                        const query = `
+                                ALTER TABLE 
+                                    \`${tableName}\`
+                                DROP INDEX 
+                                    \`${indexName}\`,
+                                ADD ${(index.unique ? 'UNIQUE ' : '')}INDEX \`${indexName}\` (${Object.keys(index.columns).map(c => `\`${c}\` ${index.columns[c]}`)})`;
+                        await this.connection.query(query);
+                        change++;
+                    }
+                }
+
+                for (const indexName of Object.keys(orgTable.indexes)) {
+                    if (table.indexes[indexName]) {
+                        continue;
+                    }
+
+                    // ignore foreign key index 
+                    console.log(fkIndexes);
+                    console.log(tableName + "." + Object.keys(orgTable.indexes[indexName].columns).map(c => c.split(' ')[0]).join(''));
+                    if (fkIndexes.indexOf(tableName + "." + Object.keys(orgTable.indexes[indexName].columns).map(c => c.split(' ')[0]).join('')) === -1) {
+                        console.log('kkkk')
+                        const query = `
+                                ALTER TABLE 
+                                    \`${tableName}\` 
+                                DROP INDEX \`${indexName}\``;
+                        await this.connection.query(query);
+                        change++;
+                    }
+                }
+
+                // foregin key
+                for (const columnName of Object.keys(table.columns).filter(c => table.columns[c].foreignKey)) {
+                    for (const fkName of Object.keys(table.columns[columnName].foreignKey)) {
+                        console.log(orgTable.columns[columnName].foreignKey);
+                        const orgForeignKey = orgTable.columns[columnName] &&
+                        orgTable.columns[columnName].foreignKey &&
+                        orgTable.columns[columnName].foreignKey[fkName] ? orgTable.columns[columnName].foreignKey[fkName] : null;
+                        const foreignKey = table.columns[columnName].foreignKey[fkName];
+                        if (orgForeignKey !== null) {
+                            if (foreignKey.update !== orgForeignKey.update || foreignKey.delete !== orgForeignKey.delete) {
+                                // drop
+                                const query = `
+                                        ALTER TABLE 
+                                            \`${tableName}\` 
+                                        DROP FOREIGN KEY \`${orgForeignKey.name}\``;
+                                await this.connection.query(query);
+                                change++;
+                            }
+                            else {
+                                continue;
+                            }
+                        }
+
+                        const query = DbMysql.createAlterForeignKey(tableName, columnName, fkName, foreignKey.update, foreignKey.delete, db.tables);
+                        await this.connection.query(query);
+                        change++;
+                    }
+
+                }
+
+                // drop foreign key
+                /*var fks = table.Value.Columns.Values.Where(c => c.ForeignKey != null).Select(c => c.ForeignKey.First().Key).ToList();
+                foreach (var fk in orgTable.Columns.Values.Where(c => c.ForeignKey != null).Select(c => c.ForeignKey.First()))
+                {
+                    if (fks.Contains(fk.Key)) continue;
+                    using (var cmd = new MySqlCommand($"ALTER TABLE `{table.Key}` DROP FOREIGN KEY `{fk.Value.Name}`;", trn.Connection, trn))
+                    {
+                        cmd.ExecuteNonQuery();
+                        change++;
+                    }
+                }*/
+
+            }
+            else {
+                // create
+                const data = {};
+                data[tableName] = table;
+                const query = this.createQuery(data);
+                await this.connection.query(query);
+                change++;
+            }
+
+
+            // drop tables
+            for (const tableName of Object.keys(currentDb.tables).filter(t => !db.tables[t])) {
+                const query = `
+                        SET FOREIGN_KEY_CHECKS = 0;
+                        DROP TABLE \`${tableName}\`;
+                        SET FOREIGN_KEY_CHECKS = 1;
+                `;
+                await this.connection.query(query);
+                change++;
+
+            }
+
+            await this.connection.commit();
+
+            if (change == 0) {
+                console.log('nothing is changed');
+            }
+
+        }
+
+        return true;
 
     }
 
 
-    private createAlterForeignKey(table: string, column: string, fk: string, onupdate: string, ondelete: string, tables: {[key: string]: DbTable}) {
+    private static createAlterForeignKey(table: string, column: string, fk: string, onupdate: string, ondelete: string, tables: {[key: string]: DbTable}) {
         
         const foreignTable = fk.split('.')[0];
         const foreignColumn = fk.split('.')[1];

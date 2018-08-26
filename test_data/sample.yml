@@ -12,12 +12,12 @@ tables:
       age:
         type: int
         notNull: true
-      user_group_id:
-        type: int
-        foreignKey:
-          user_groups.id:
-            update: 'cascade'
-            delete: ''
+    #  user_group_id:
+    #    type: int
+    #    foreignKey:
+    #      user_groups.id:
+    ##        update: 'cascade'
+     #       delete: ''
       address:
         type: text
     indexes:

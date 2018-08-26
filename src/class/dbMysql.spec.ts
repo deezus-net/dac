@@ -54,12 +54,13 @@ describe('dbMysql', () => {
 
     });
 
-    it.skip ('update', async () => {
+    it ('update', async () => {
+        await mysql.connect();
         const res = await mysql.update(db);
         await mysql.end();
     });
 
-    it ('diff', async () => {
+    it.skip ('diff', async () => {
         await mysql.connect();
         const res = await mysql.diff(db);
         await mysql.end();
