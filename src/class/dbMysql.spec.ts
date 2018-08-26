@@ -5,6 +5,7 @@ import {Db} from '../interfaces/db';
 import {DbHost} from '../interfaces/dbHost';
 import {DbMysql} from './dbMysql';
 import {dbToYaml, yamlToDb} from './utility';
+import {accessSync} from 'fs';
 
 
 describe('dbMysql', () => {
@@ -20,8 +21,8 @@ describe('dbMysql', () => {
         db = yamlToDb(dbText);
        
     });
-
     
+
     it.skip('query', async () => {
         const query = mysql.query(db);
         console.log(query);
@@ -54,7 +55,7 @@ describe('dbMysql', () => {
 
     });
 
-    it ('update', async () => {
+    it.skip ('update', async () => {
         await mysql.connect();
         const res = await mysql.update(db);
         await mysql.end();

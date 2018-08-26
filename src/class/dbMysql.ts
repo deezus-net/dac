@@ -257,8 +257,10 @@ export class DbMysql implements DbInterface {
    
     
     public async reCreate(db: Db) {
-        const trn = await this.connection.beginTransaction();
-        console.log(trn);
+        
+        await this.connection.query('BEGIN');
+       // const trn = await this.connection.beginTransaction();
+       // console.log(trn);
         const tables = [];
         const data = await this.connection.query('show tables');
         for (const row of data){
@@ -276,7 +278,8 @@ export class DbMysql implements DbInterface {
         
         const query = this.createQuery(db.tables);
         await this.connection.query(query);
-        await this.connection.commit();
+      //  await this.connection.commit();
+        await this.connection.query('COMMIT');
         return true;
 
     }
@@ -287,7 +290,8 @@ export class DbMysql implements DbInterface {
      * @returns {Promise<void>}
      */
     public async update(db: Db) {
-        const trn = await this.connection.beginTransaction();
+        //const trn = await this.connection.beginTransaction();
+        await this.connection.query('BEGIN');
         const currentDb = await this.extract();
 
         let change = 0;
@@ -461,7 +465,8 @@ export class DbMysql implements DbInterface {
 
             }
 
-            await this.connection.commit();
+        //    await this.connection.commit();
+            await this.connection.query('COMMIT');
 
             if (change == 0) {
                 console.log('nothing is changed');
