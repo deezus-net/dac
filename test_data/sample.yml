@@ -32,6 +32,7 @@ tables:
     columns:
       id:
         id: true
+        type: int
       name:
         type: varchar
         length: 100
