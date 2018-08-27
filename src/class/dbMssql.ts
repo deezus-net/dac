@@ -131,6 +131,60 @@ export class DbMssql implements DbInterface {
     }
 
 
+    /**
+     * 
+     * @param {Db} db
+     * @returns {Promise<boolean>}
+     */
+    public async reCreate(db: Db) {
+        const createQuery = this.createQuery(db.tables);
+        await this.beginTransaction();
+
+        // get table and foreign key list
+        const tables: string[] = [];
+        const foreignKeys: { [key: string]: string } = {};
+
+        let query = `
+                SELECT
+                    t.name AS table_name,
+                    fk.name AS fk_name
+                FROM
+                    sys.tables AS t
+                LEFT OUTER JOIN
+                    sys.foreign_keys AS fk
+                ON
+                    fk.parent_object_id = t.object_id
+                `;
+        for (const row of await this.exec(query)) {
+
+            tables.push(row['table_name']);
+            if (row['fk_name']) {
+                foreignKeys[row['fk_name']] = row['table_name'];
+            }
+        }
+
+
+        // drop exist foreign keys
+        for (const fkName of Object.keys(foreignKeys)) {
+            query = `
+                    ALTER TABLE [${fkName}] DROP CONSTRAINT [${foreignKeys[fkName]}]
+            `;
+            await this.exec(query);
+        }
+
+
+        // drop exist tables
+        for (const tableName of tables) {
+            query = `DROP TABLE [${tableName}]`;
+            await this.exec(query);
+        }
+        await this.exec(createQuery);
+        await this.commit();
+
+        return true;
+    }
+
+
     public async exec(query: string) {
         const res = await new Promise<any[]>(resolve => {
             const request = new Request(query, err => {

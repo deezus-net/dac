@@ -31,7 +31,7 @@ describe('DbMssql', () => {
     });
 
 
-    it('create', async () => {
+    it.skip('create', async () => {
         await sql.connect();
         const res = await sql.create(db);
         expect(res).toBeTruthy();
@@ -39,7 +39,7 @@ describe('DbMssql', () => {
 
     });
 
-    it.skip('reCreate', async () => {
+    it('reCreate', async () => {
         await sql.connect();
         const res = await sql.reCreate(db);
         expect(res).toBeTruthy();
