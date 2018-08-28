@@ -39,7 +39,7 @@ describe('DbMssql', () => {
 
     });
 
-    it('reCreate', async () => {
+    it.skip('reCreate', async () => {
         await sql.connect();
         const res = await sql.reCreate(db);
         expect(res).toBeTruthy();
@@ -47,7 +47,7 @@ describe('DbMssql', () => {
 
     });
 
-    it.skip('extract', async () => {
+    it('extract', async () => {
         await sql.connect();
         const res = await sql.extract();
         const text = dbToYaml(res);
