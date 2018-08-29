@@ -2,6 +2,11 @@ import * as yaml from 'js-yaml';
 import {Db} from '../interfaces/db';
 import {DbColumn} from '../interfaces/dbColumn';
 import {DbIndex} from '../interfaces/dbIndex';
+import {ColumnDiff, DiffResult, ForeignKeyDiff, IndexDiff} from '../interfaces/diffResult';
+import {DbForeignKey} from '../interfaces/dbForeignKey';
+import {DbTable} from '../interfaces/dbTable';
+import {Runtime} from 'inspector';
+import ConsoleAPICalledEventDataType = module
 
 export const dbToYaml = (db: Db) => {
     // trim property
@@ -176,4 +181,108 @@ export const checkDbDiff = (orgDb: Db, db: Db) => {
     if (!change) {
         console.log('no change');
     }
+};
+
+export const checkDbDiff2 = (orgDb: Db, db: Db) => {
+    const result: DiffResult = {
+        addTableNames: [],
+        deletedTableNames: [],
+        modifiedTableNames: [],
+        addColumns: {},
+        modifiedColumns: {},
+        deletedColumnNames: [],
+        addIndexes: {},
+        modifiedIndexes: {},
+        deletedIndexNames: [],
+        addForeignKeys: {},
+        deletedForeignKeyNames: [],
+        modifiedForeignKeys: {}
+
+    };
+    
+    // tables
+    const orgTableNames = Object.keys(orgDb.tables).concat();
+    const tableNames = Object.keys(db.tables);
+
+    for (const tableName of distinct(orgTableNames, tableNames)) {
+        if (!db.tables[tableName]) {
+            result.deletedTableNames.push(tableName);
+
+        } else if (!orgDb.tables[tableName]) {
+            result.addTableNames.push(tableName);
+
+        } else {
+            // columns
+            const orgColumnNames = Object.keys(orgDb.tables[tableName].columns);
+            const columnNames = Object.keys(db.tables[tableName].columns);
+
+            for (const columnName of distinct(orgColumnNames, columnNames)) {
+                if (!db.tables[tableName].columns[columnName]) {
+                    if (!result.deletedColumnNames[tableName]) {
+                        result.deletedColumnNames[tableName] = [];
+                    }
+                    result.deletedColumnNames[tableName].push(columnName);
+                    
+
+                } else if (!orgDb.tables[tableName].columns[columnName]) {
+                    if (!result.addColumns[tableName]) {
+                        result.addColumns[tableName] = [];
+                    }
+                    db.tables[tableName].columns[columnName].name = columnName;
+                    result.addColumns[tableName].push(db.tables[tableName].columns[columnName]);
+
+                } else if (!equalColumn(orgDb.tables[tableName].columns[columnName], db.tables[tableName].columns[columnName])) {
+                    if (!result.modifiedColumns[tableName]) {
+                        result.modifiedColumns[tableName] = [];
+                    }
+                    orgDb.tables[tableName].columns[columnName].name = columnName;
+                    db.tables[tableName].columns[columnName].name = columnName;
+                    result.modifiedColumns[tableName].push({
+                        old: orgDb.tables[tableName].columns[columnName],
+                        new: db.tables[tableName].columns[columnName]
+                    });
+                }
+            }
+
+            // indexes
+            const orgIndexNames = Object.keys(orgDb.tables[tableName].indexes || {});
+            const indexNames = Object.keys(db.tables[tableName].indexes || {});
+
+            for (const indexName of distinct(orgIndexNames, indexNames) ) {
+                if (!(db.tables[tableName].indexes || {})[indexName]) {
+                    if (!result.deletedIndexNames[tableName]) {
+                        result.deletedIndexNames[tableName] = [];
+                    }
+                    result.deletedIndexNames[tableName].push(indexName);
+
+                } else if (!(orgDb.tables[tableName].indexes || {})[indexName]) {
+                    if (!result.addIndexes[tableName]) {
+                        result.addIndexes[tableName] = [];
+                    }
+                    db.tables[tableName].indexes[indexName].name = indexName;
+                    result.addIndexes[tableName].push(db.tables[tableName].indexes[indexName]);
+
+                } else if (!equalIndex(db.tables[tableName].indexes[indexName], orgDb.tables[tableName].indexes[indexName])) {
+                    if (!result.modifiedIndexes[tableName]) {
+                        result.modifiedIndexes[tableName] = [];
+                    }
+                    orgDb.tables[tableName].indexes[indexName].name = indexName;
+                    db.tables[tableName].indexes[indexName].name = indexName;
+                    result.modifiedIndexes[tableName].push({
+                        old: orgDb.tables[tableName].indexes[indexName],
+                        new: db.tables[tableName].indexes[indexName]
+                    });
+         
+                }
+                
+            }
+        }
+
+    }
+
+    return result;
+};
+
+export const distinct = (array1: string[], array2: string[]) => {
+    return array1.concat(array2).filter((x, i, org) => org.indexOf(x) === i);
 };

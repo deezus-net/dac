@@ -5,7 +5,7 @@ import {DbInterface} from '../interfaces/dbInterface';
 import {DbTable} from '../interfaces/dbTable';
 import {ColumnType} from './columnType';
 import {DbColumn} from '../interfaces/dbColumn';
-import {checkDbDiff, equalColumn, equalIndex} from './utility'
+import {checkDbDiff2, equalColumn, equalIndex} from './utility'
  
 export class DbPostgres implements DbInterface {
     private client: Client;
@@ -50,7 +50,7 @@ export class DbPostgres implements DbInterface {
     
     public async diff(db: Db) {
         const orgDb = await this.extract();
-        return checkDbDiff(orgDb, db);
+        return checkDbDiff2(orgDb, db);
     }
 
     public async extract() {

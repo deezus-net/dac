@@ -1,6 +1,7 @@
 import {DbForeignKey} from './dbForeignKey';
 
 export interface DbColumn {
+    name?: string;
     displayName?: string;
     type?: string;
     length?: number;
