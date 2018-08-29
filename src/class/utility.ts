@@ -58,8 +58,6 @@ export const yamlToDb = (src: string) => {
 };
 
 export const equalColumn = (col1: DbColumn, col2: DbColumn) => {
-    console.log(col1);
-    console.log(col2);
     
     return col1.type === col2.type && 
         col1.length || 0 === col2.length || 0 && 

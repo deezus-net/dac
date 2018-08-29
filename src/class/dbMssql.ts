@@ -1,16 +1,10 @@
-import {Connection, Request, TediousType, TYPES} from 'tedious';
+import {Connection, Request, TYPES} from 'tedious';
+import {Db} from '../interfaces/db';
+import {DbColumn} from '../interfaces/dbColumn';
 import {DbHost} from '../interfaces/dbHost';
 import {DbInterface} from '../interfaces/dbInterface';
-import {promises} from 'fs';
-import {Db} from '../interfaces/db';
 import {DbTable} from '../interfaces/dbTable';
-import objectContaining = jasmine.objectContaining;
-import {Key} from 'readline';
-import {DbColumn} from '../interfaces/dbColumn';
-import {CommanderStatic} from 'commander';
-import {constants} from 'http2';
-import NGHTTP2_FLAG_PRIORITY = module
-
+import {checkDbDiff, equalColumn, equalIndex} from './utility';
 
 export class DbMssql implements DbInterface {
 
@@ -20,6 +14,10 @@ export class DbMssql implements DbInterface {
 
     }
 
+    /**
+     * 
+     * @returns {Promise<void>}
+     */
     public async connect() {
         this.connection = await new Promise<Connection>(resolve => {
             const connection = new Connection({
@@ -41,6 +39,10 @@ export class DbMssql implements DbInterface {
         });
     }
 
+    /**
+     * 
+     * @returns {Promise<void>}
+     */
     public async end() {
         await new Promise(resolve => {
             this.connection.close();
@@ -48,85 +50,20 @@ export class DbMssql implements DbInterface {
         });
     }
 
+    /**
+     * 
+     * @param {Db} db
+     * @returns {string}
+     */
     public query(db: Db) {
         return this.createQuery(db.tables);
     }
-
+    
     /**
      * 
-     * @param {{[p: string]: DbTable}} tables
-     * @returns {string}
+     * @param {Db} db
+     * @returns {Promise<boolean>}
      */
-    private createQuery(tables: { [key: string]: DbTable }) {
-
-        const query: string[] = [`USE [${this.dbHost.database}];`];
-        const fkQuery: string[] = [];
-        for (const tableName of Object.keys(tables)) {
-            const table = tables[tableName];
-
-            query.push(`CREATE TABLE [dbo].[${tableName}](`);
-            const columnQuery: string[] = [];
-            const pk: string[] = [];
-
-            for (const columnName of Object.keys(table.columns)) {
-                const column = table.columns[columnName];
-                if (column.id) {
-                    column.notNull = true;
-                }
-
-                const identity = column.id ? ' IDENTITY ' : '';
-                const notNull = column.notNull ? ' NOT NULL ' : '';
-                const check = column.check ? ` CHECK(${column.check}) ` : '';
-                const def = column.default ? ` DEFAULT ${column.default} ` : '';
-                const type = column.type + (column.length > 0 ? `(${column.length})` : '');
-                columnQuery.push(`    [${columnName}] ${type}${identity}${notNull}${def}${check}`);
-                if (column.pk || column.id) {
-                    pk.push(columnName);
-                }
-
-            }
-            query.push(columnQuery.join(',\n') + (pk.length > 0 ? ',' : ''));
-
-            if (pk.length > 0) {
-                query.push(`    CONSTRAINT [PK_${tableName}] PRIMARY KEY CLUSTERED`);
-                query.push('    (');
-                const pkQuery: string[] = [];
-                pk.forEach(p => {
-                    pkQuery.push(`        [${p}]`);
-                });
-                query.push(pkQuery.join(',\n'));
-                query.push('    )');
-            }
-
-            // foreign key
-            for (const columnName of Object.keys(table.columns)) {
-                const column = table.columns[columnName];
-                if (column.foreignKey) {
-                    for (const fkName of Object.keys(column.foreignKey)) {
-                        const foreignKey = column.foreignKey[fkName];
-                        fkQuery.push(DbMssql.createAlterForeignKey(tableName, columnName, fkName, foreignKey.update, foreignKey.delete));
-                    }
-                }
-            }
-
-
-            query.push(');');
-
-
-            let num = 1;
-            for (const indexName of Object.keys(table.indexes)) {
-                const index = table.indexes[indexName];
-                const name = indexName ? indexName : `INDEX_${tableName}_${num++}`;
-                query.push(`CREATE ${(index.unique ? 'UNIQUE ' : '')}INDEX [${name}] ON [dbo].[${tableName}](`);
-                query.push(`    ${Object.keys(index.columns).map(c => `[${c}] ${index.columns[c]}`).join(',')}`);
-                query.push(');');
-            }
-
-        }
-
-        return query.join('\n') + '\n' + fkQuery.join('\n');
-    }
-
     public async create(db: Db) {
         const query = this.createQuery(db.tables);
         await this.beginTransaction();
@@ -134,7 +71,6 @@ export class DbMssql implements DbInterface {
         await this.commit();
         return true;
     }
-
 
     /**
      * 
@@ -167,8 +103,7 @@ export class DbMssql implements DbInterface {
                 foreignKeys[row['fk_name']] = row['table_name'];
             }
         }
-
-
+        
         // drop exist foreign keys
         for (const fkName of Object.keys(foreignKeys)) {
             query = `
@@ -176,8 +111,7 @@ export class DbMssql implements DbInterface {
             `;
             await this.exec(query);
         }
-
-
+        
         // drop exist tables
         for (const tableName of tables) {
             query = `DROP TABLE [${tableName}]`;
@@ -188,12 +122,19 @@ export class DbMssql implements DbInterface {
 
         return true;
     }
-
-
+    
+    /**
+     * 
+     * @param {string} query
+     * @param parameters
+     * @returns {Promise<any>}
+     */
     public async exec(query: string, parameters: any = null) {
         const res = await new Promise<any[]>(resolve => {
             const request = new Request(query, err => {
-                console.log(err);
+                if (err){
+                    console.log(err);
+                } 
                 resolve(rows);
             });
             
@@ -216,7 +157,11 @@ export class DbMssql implements DbInterface {
         return res;
 
     }
-    
+
+    /**
+     * 
+     * @returns {Promise<{tables: {[p: string]: DbTable}}>}
+     */
     public async extract() {
         const tables: { [key: string]: DbTable } = {};
 
@@ -260,7 +205,8 @@ export class DbMssql implements DbInterface {
             if (!indexes[tableName]) {
                 indexes[tableName] = {};
             }
-            if (parseInt(row['is_primary_key'], 10) === 1) {
+            
+            if (row['is_primary_key'] == 'true') {
                 pk[tableName].push(row['column_name']);
 
             } else {
@@ -435,8 +381,7 @@ export class DbMssql implements DbInterface {
                     t1.name = @table
             `;
             for (const row of await this.exec(query, {table: tableName})) {
-
-
+                
                 if (tables[tableName].columns[row['column_name']]) {
                     if (!tables[tableName].columns[row['column_name']].foreignKey) {
                         tables[tableName].columns[row['column_name']].foreignKey = {};
@@ -455,7 +400,197 @@ export class DbMssql implements DbInterface {
 
         return {tables: tables};
     }
+
+    /**
+     * 
+     * @param {Db} db
+     * @returns {Promise<void>}
+     */
+    public async diff(db: Db) {
+        const orgDb = await this.extract();
+        return checkDbDiff(orgDb, db);
+    }
+
+    /**
+     * 
+     * @param {Db} db
+     * @returns {Promise<boolean>}
+     */
+    public async update(db: Db) {
+        await this.beginTransaction();
+
+
+        // get current tables
+        const currentDb = await this.extract();
+
+
+        // dropped index for altering column
+        const droppedIndexes: Array<{ [key: string]: string }> = [];
+
+        let change = 0;
+        let query;
+        for (const tableName of Object.keys(db.tables)) {
+            const orgTable = currentDb.tables[tableName];
+            const table = db.tables[tableName];
+            if (orgTable) {
+                // alter
+                for (const columnName of Object.keys(table.columns)) {
+                    const orgColumn = orgTable.columns[columnName];
+                    const column = table.columns[columnName];
+                    const type = column.type + (column.length > 0 ? `(${column.length})` : '');
+                    if (!orgColumn) {
+                        // add column
+                        query = `
+                            ALTER TABLE 
+                                [${tableName}] 
+                            ADD 
+                                [${columnName}] ${type}${(column.id ? ' IDENTITY' : '')}${column.notNull ? ' NOT NULL' : ''}
+                            `;
+                        console.log(query);
+                        await this.exec(query);
+                        change++;
+
+                    } else if (!equalColumn(column, orgColumn)) {
+                        // if change execute alter
+                        for (const indexName of Object.keys(orgTable.indexes).filter(i => orgTable.indexes[i].columns[columnName])) {
+                            query = `
+                                DROP INDEX 
+                                    [${indexName}] ON [${tableName}]`;
+                            await this.exec(query);
+
+                            const droppedIndex = {};
+                            droppedIndex[tableName] = indexName;
+                            droppedIndexes.push(droppedIndex);
+
+                        }
+                        query = `
+                            ALTER TABLE 
+                                [${tableName}] 
+                            ALTER COLUMN  
+                                [${columnName}] ${type}${column.id ? ' IDENTITY' : ''}${column.notNull ? ' NOT NULL' : ''}
+                            `;
+                        await this.exec(query);
+
+                        change++;
+                    }
+                }
+
+                for (const delCol of Object.keys(orgTable.columns).filter(oc => Object.keys(table.columns).indexOf(oc) === -1)) {
+                    query = `
+                        ALTER TABLE 
+                            [${tableName}] 
+                        DROP COLUMN [${delCol}]`;
+                    await this.exec(query);
+
+                    change++;
+                }
+
+
+                for (const indexName of Object.keys(table.indexes)) {
+                    const orgIndex = orgTable.indexes[indexName];
+                    const index = table.indexes[indexName];
+
+                    if (!orgIndex /*|| droppedIndexes.Any(i => i.Key == table.Key && i.Value == index.Key*/) {
+                        // add index
+                        query = `
+                            CREATE 
+                                ${index.unique ? 'UNIQUE ' : ''}INDEX [${indexName}] 
+                            ON 
+                                [dbo].[${tableName}](${Object.keys(index.columns).map(c => `[${c}] ${index.columns[c]}`).join(',')})`;
+                        await this.exec(query);
+                        change++;
+
+                    } else if (!equalIndex(index, orgIndex)) {
+                        // if change execute drop and create
+                        query = `
+                            DROP INDEX 
+                                [${tableName}].[${indexName}]`;
+                        await this.exec(query);
+                        change++;
+                        query = `
+                            CREATE 
+                                ${index.unique ? 'UNIQUE ' : ''}INDEX [${indexName}] 
+                            ON 
+                                [dbo].[${tableName}](${Object.keys(index.columns).map(c => `[${c}] ${index.columns[c]}`).join(',')})`;
+                        await this.exec(query);
+                        change++;
+                    }
+                }
+
+                for (const indexName of Object.keys(orgTable.indexes).filter(oi => !table.indexes[oi])) {
+                    query = `
+                        DROP INDEX 
+                            [${tableName}].[${indexName}]`;
+                    await this.exec(query);
+                    change++;
+                }
+
+
+                // foregin key
+                for (const columnName of Object.keys(table.columns).filter(c => table.columns[c].foreignKey)) {
+                    const column = table.columns[columnName];
+                    for (const f of Object.keys(column.foreignKey)) {
+                        const orgForeignKey = orgTable.columns[columnName] && orgTable.columns[columnName].foreignKey[f] ? orgTable.columns[columnName].foreignKey[f] : null;
+                        const foreginKey = column.foreignKey[f];
+                        if (orgForeignKey) {
+                            if (foreginKey.update !== orgForeignKey.update || foreginKey.delete !== orgForeignKey.delete) {
+                                // drop
+                                query = `
+                                    ALTER TABLE 
+                                        [dbo].[${tableName}]
+                                    DROP CONSTRAINT [${orgForeignKey.name}];
+                                `;
+                                await this.exec(query);
+                                change++;
+                            
+                            } else {
+                                continue;
+                            }
+
+                        }
+                        query = DbMssql.createAlterForeignKey(tableName, columnName, f, foreginKey.update, foreginKey.delete);
+                        await this.exec(query);
+                        change++;
+                    }
+                }
+
+                // drop foreign key
+                const fks = Object.keys(table.columns).filter(c => table.columns[c].foreignKey).map(c => Object.keys(table.columns[c].foreignKey)[0]);
+                for (const colName of Object.keys(orgTable.columns)) {
+                    if (!orgTable.columns[colName].foreignKey) {
+                        continue;
+                    }
+                    for (const fk of Object.keys(orgTable.columns[colName].foreignKey).filter(f => fks.indexOf(f) === -1)) {
+                        query = `
+                            ALTER TABLE 
+                                [dbo].[${tableName}] 
+                            DROP CONSTRAINT [${orgTable.columns[colName].foreignKey[fk].name}];
+                        `;
+                        await this.exec(query);
+                        change++;
+                    }
+                }
+                
+            } else {
+                // create
+                const data = {};
+                data[tableName] = table;
+                query = this.createQuery(data);
+                await this.exec(query);
+            }
+        }
+        await this.commit();
+        if (change === 0) {
+            console.log('nothing is changed');
+        }
+        return true;
+    }
     
+
+    /**
+     * 
+     * @returns {Promise}
+     */
     private async beginTransaction() {
         return new Promise(resolve => {
             this.connection.beginTransaction(err => {
@@ -464,6 +599,10 @@ export class DbMssql implements DbInterface {
         });
     }
 
+    /**
+     * 
+     * @returns {Promise}
+     */
     private async commit() {
         return new Promise(resolve => {
             this.connection.commitTransaction(err => {
@@ -472,13 +611,81 @@ export class DbMssql implements DbInterface {
         });
     }
 
-    /*
-        diff: (db: Db) => void;
-        extract: () => Promise<Db>;
-        query: (db: Db) => string;
-        reCreate: (db: Db) => Promise<boolean>;
-        update: (db: Db) => Promise<boolean>;*/
+    /**
+     *
+     * @param {{[p: string]: DbTable}} tables
+     * @returns {string}
+     */
+    private createQuery(tables: { [key: string]: DbTable }) {
 
+        const query: string[] = [`USE [${this.dbHost.database}];`];
+        const fkQuery: string[] = [];
+        for (const tableName of Object.keys(tables)) {
+            const table = tables[tableName];
+
+            query.push(`CREATE TABLE [dbo].[${tableName}](`);
+            const columnQuery: string[] = [];
+            const pk: string[] = [];
+
+            for (const columnName of Object.keys(table.columns)) {
+                const column = table.columns[columnName];
+                if (column.id) {
+                    column.notNull = true;
+                }
+
+                const identity = column.id ? ' IDENTITY ' : '';
+                const notNull = column.notNull ? ' NOT NULL ' : '';
+                const check = column.check ? ` CHECK(${column.check}) ` : '';
+                const def = column.default ? ` DEFAULT ${column.default} ` : '';
+                const type = column.type + (column.length > 0 ? `(${column.length})` : '');
+                columnQuery.push(`    [${columnName}] ${type}${identity}${notNull}${def}${check}`);
+                if (column.pk || column.id) {
+                    pk.push(columnName);
+                }
+
+            }
+            query.push(columnQuery.join(',\n') + (pk.length > 0 ? ',' : ''));
+
+            if (pk.length > 0) {
+                query.push(`    CONSTRAINT [PK_${tableName}] PRIMARY KEY CLUSTERED`);
+                query.push('    (');
+                const pkQuery: string[] = [];
+                pk.forEach(p => {
+                    pkQuery.push(`        [${p}]`);
+                });
+                query.push(pkQuery.join(',\n'));
+                query.push('    )');
+            }
+
+            // foreign key
+            for (const columnName of Object.keys(table.columns)) {
+                const column = table.columns[columnName];
+                if (column.foreignKey) {
+                    for (const fkName of Object.keys(column.foreignKey)) {
+                        const foreignKey = column.foreignKey[fkName];
+                        fkQuery.push(DbMssql.createAlterForeignKey(tableName, columnName, fkName, foreignKey.update, foreignKey.delete));
+                    }
+                }
+            }
+
+
+            query.push(');');
+
+
+            let num = 1;
+            for (const indexName of Object.keys(table.indexes)) {
+                const index = table.indexes[indexName];
+                const name = indexName ? indexName : `INDEX_${tableName}_${num++}`;
+                query.push(`CREATE ${(index.unique ? 'UNIQUE ' : '')}INDEX [${name}] ON [dbo].[${tableName}](`);
+                query.push(`    ${Object.keys(index.columns).map(c => `[${c}] ${index.columns[c]}`).join(',')}`);
+                query.push(');');
+            }
+
+        }
+
+        return query.join('\n') + '\n' + fkQuery.join('\n');
+    }
+    
     /**
      * 
      * @param {string} table

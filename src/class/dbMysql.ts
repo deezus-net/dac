@@ -390,7 +390,6 @@ export class DbMysql implements DbInterface {
                     console.log(fkIndexes);
                     console.log(tableName + "." + Object.keys(orgTable.indexes[indexName].columns).map(c => c.split(' ')[0]).join(''));
                     if (fkIndexes.indexOf(tableName + "." + Object.keys(orgTable.indexes[indexName].columns).map(c => c.split(' ')[0]).join('')) === -1) {
-                        console.log('kkkk')
                         const query = `
                                 ALTER TABLE 
                                     \`${tableName}\` 
