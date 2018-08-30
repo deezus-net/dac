@@ -1,11 +1,11 @@
 import { Client } from 'pg';
 import {Db} from '../interfaces/db';
+import {DbColumn} from '../interfaces/dbColumn';
 import {DbHost} from '../interfaces/dbHost';
 import {DbInterface} from '../interfaces/dbInterface';
 import {DbTable} from '../interfaces/dbTable';
 import {ColumnType} from './columnType';
-import {DbColumn} from '../interfaces/dbColumn';
-import {checkDbDiff2, equalColumn, equalIndex} from './utility'
+import {checkDbDiff2, equalColumn, equalIndex} from './utility';
  
 export class DbPostgres implements DbInterface {
     private client: Client;
@@ -24,14 +24,15 @@ export class DbPostgres implements DbInterface {
             console.log(e);
         }
     }
-    
-    
+
     public async connect() {
         await this.client.connect();
+        return true;
     }
-
-    public async end() {
+    
+    public async close() {
         await this.client.end();
+        return true;
     }
 
     /**

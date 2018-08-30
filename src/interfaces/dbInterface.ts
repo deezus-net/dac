@@ -7,4 +7,6 @@ export interface DbInterface {
     reCreate: (db: Db) => Promise<boolean>;
     update: (db: Db) => Promise<boolean>;
     diff: (db: Db) => void;
+    connect: () => Promise<boolean>;
+    close: () => Promise<boolean>;
 }

@@ -1,20 +1,35 @@
 #! /usr/bin/env node
-import * as fs from 'fs';
-import * as yaml from 'js-yaml';
-import { promisify } from 'util';
-import { Args } from './args';
-import {DbHost} from './interfaces/dbHost';
-import {DbMysql} from './class/dbMysql';
-import {DbPostgres} from './class/dbPostgres';
+import * as program from 'commander';
+import { Core } from './class/core';
 
-async function main() {
-    const text = await promisify(fs.readFile)('./test_data/hosts.yml', 'utf8');
-    const hosts = yaml.safeLoad(text) as {[key: string]: DbHost};
-    console.log(hosts);
+(async () => {
+    const core = new Core();
     
-    const p = new DbPostgres(hosts['postgres']);
-    //const m = new DbMysql(hosts['mysql']);
-
-}
-
-main();
+    program.command('extract').description('').action(async () => {
+        await core.setHosts({
+            type: program.type,
+            host: program.host,
+            port: program.port,
+            hosts: program.hosts,
+            user: program.user,
+            password: program.password,
+            database: program.database,
+            input: program.input,
+            outDir: program.outDir
+        });
+        await core.execute('extract');
+    });
+    
+    program.version('0.0.1')
+        .option('-h, --host <value>', 'host')
+        .option('-H, --hosts <value>', 'hosts file')
+        .option('-t, --type <value>', 'database type', /^(mysql|postgres|mssql)$/i, '')
+        .option('-u, --user <value>', 'user id')
+        .option('-p, --password <value>', 'database password')
+        .option('-P, --port <value>', 'port')
+        .option('-i, --input <value>', 'yaml file path')
+        .option('-o, --outDir <value>', 'output directory');
+ 
+    program.parse(process.argv);
+    
+})();

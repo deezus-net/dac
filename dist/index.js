@@ -9,18 +9,29 @@ var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, ge
     });
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-const fs = require("fs");
-const yaml = require("js-yaml");
-const util_1 = require("util");
-const dbPostgres_1 = require("./class/dbPostgres");
-function main() {
-    return __awaiter(this, void 0, void 0, function* () {
-        const text = yield util_1.promisify(fs.readFile)('./test_data/hosts.yml', 'utf8');
-        const hosts = yaml.safeLoad(text);
-        console.log(hosts);
-        const p = new dbPostgres_1.DbPostgres(hosts['postgres']);
-        //const m = new DbMysql(hosts['mysql']);
-    });
-}
-main();
+const program = require("commander");
+const core_1 = require("./class/core");
+(() => __awaiter(this, void 0, void 0, function* () {
+    const core = new core_1.Core();
+    program.command('extract').description('').action(() => __awaiter(this, void 0, void 0, function* () {
+        yield core.setHosts({
+            type: program.type,
+            host: program.host,
+            port: program.port,
+            hosts: program.hosts,
+            user: program.user,
+            password: program.password,
+            database: program.database
+        });
+        yield core.execute('extract');
+    }));
+    program.version('0.0.1')
+        .option('-h, --host <value>', 'host')
+        .option('-H, --hosts <value>', 'hosts file')
+        .option('-t, --type <value>', 'database type', /^(mysql|postgres|mssql)$/i, '')
+        .option('-u, --user <value>', 'user id')
+        .option('-p, --password <value>', 'database password')
+        .option('-P, --port <value>', 'port');
+    program.parse(process.argv);
+}))();
 //# sourceMappingURL=index.js.map

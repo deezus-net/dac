@@ -5,4 +5,5 @@ export interface DbHost {
     user: string;
     password: string;
     database: string;
+    name?: string;
 }

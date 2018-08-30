@@ -19,7 +19,7 @@ export class DbMssql implements DbInterface {
      * @returns {Promise<void>}
      */
     public async connect() {
-        this.connection = await new Promise<Connection>(resolve => {
+        return await new Promise<boolean>(resolve => {
             const connection = new Connection({
                 userName: this.dbHost.user,
                 password: this.dbHost.password,
@@ -32,7 +32,10 @@ export class DbMssql implements DbInterface {
 
             connection.on('connect', err => {
                 if (!err) {
-                    resolve(connection);
+                    this.connection = connection;
+                    resolve(true);
+                } else {
+                    resolve(false);
                 }
             });
 
@@ -43,10 +46,10 @@ export class DbMssql implements DbInterface {
      * 
      * @returns {Promise<void>}
      */
-    public async end() {
-        await new Promise(resolve => {
+    public async close() {
+        return await new Promise<boolean>(resolve => {
             this.connection.close();
-            resolve();
+            resolve(true);
         });
     }
 
@@ -273,7 +276,7 @@ export class DbMssql implements DbInterface {
             for (const indexName of Object.keys(indexes[tableName])) {
                 tables[tableName].indexes[indexName] = {columns: {}, unique: false};
                 for (const indexColumn of Object.keys(indexes[tableName][indexName])) {
-                    tables[tableName].indexes[indexName].columns[indexColumn] = indexes[tableName][indexName][indexColumn];
+                 //   tables[tableName].indexes[indexName].columns[indexColumn] = indexes[tableName][indexName][indexColumn];
                 }
             }
         }

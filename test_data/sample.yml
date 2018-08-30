@@ -7,23 +7,26 @@ tables:
         pk: true
       name:
         type: varchar
-        length: 100
+        length: 50
         notNull: true
       age:
         type: int
         notNull: true
-    #  user_group_id:
-    #    type: int
-    #    foreignKey:
-    #      user_groups.id:
-    ##        update: 'cascade'
-     #       delete: ''
-      address:
-        type: text
+      user_group_id:
+        type: int
+        foreignKey:
+          user_groups.id:
+            update: 'cascade'
+            delete: ''
+   #   address:
+   #     type: text
+      memo:
+        type: varchar
+        length: 300
     indexes:
       ix_name:
         columns:
-          name: asc
+          name: ASC
     #  ix_address:
     #    columns:
     #      address: desc

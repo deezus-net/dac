@@ -22,20 +22,19 @@ describe('DbPostgres', () => {
         
     });
 
-    
     it.skip('query', async () => {
         await pg.connect();
        const query = pg.query(db);
        console.log(query);
        await pg.exec(query);
-        await pg.end();
+        await pg.close();
     });
 
     it.skip('create', async () => {
         await pg.connect();
         const res = await pg.create(db);
         expect(res).toBeTruthy();
-        await pg.end();
+        await pg.close();
         
     });
 
@@ -43,7 +42,7 @@ describe('DbPostgres', () => {
         await pg.connect();
         const res = await pg.reCreate(db);
         expect(res).toBeTruthy();
-        await pg.end();
+        await pg.close();
 
     });
     
@@ -52,20 +51,21 @@ describe('DbPostgres', () => {
         const res = await pg.extract();
         const text = dbToYaml(res);
         console.log(text);
-        await pg.end();
+        await pg.close();
 
     });
     
     it.skip ('update', async () => {
         await pg.connect();
         const res = await pg.update(db);
-        await pg.end();
+        await pg.close();
     });
 
     it ('diff', async () => {
         await pg.connect();
         const res = await pg.diff(db);
-        await pg.end();
+        console.log(res.modifiedIndexes['users']);
+        await pg.close();
     });
 
     afterAll(() => {

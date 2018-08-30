@@ -27,7 +27,7 @@ describe('DbMssql', () => {
         await sql.connect();
         const data = sql.query(db);
         console.log(data);
-        await sql.end();
+        await sql.close();
     });
 
 
@@ -35,7 +35,7 @@ describe('DbMssql', () => {
         await sql.connect();
         const res = await sql.create(db);
         expect(res).toBeTruthy();
-        await sql.end();
+        await sql.close();
 
     });
 
@@ -43,7 +43,7 @@ describe('DbMssql', () => {
         await sql.connect();
         const res = await sql.reCreate(db);
         expect(res).toBeTruthy();
-        await sql.end();
+        await sql.close();
 
     });
 
@@ -52,20 +52,20 @@ describe('DbMssql', () => {
         const res = await sql.extract();
         const text = dbToYaml(res);
         console.log(text);
-        await sql.end();
+        await sql.close();
 
     });
 
-    it ('update', async () => {
+    it.skip ('update', async () => {
         await sql.connect();
         const res = await sql.update(db);
-        await sql.end();
+        await sql.close();
     });
 
     it.skip ('diff', async () => {
         await sql.connect();
         const res = await sql.diff(db);
-        await sql.end();
+        await sql.close();
     });
 
     afterAll(() => {

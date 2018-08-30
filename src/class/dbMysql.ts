@@ -16,7 +16,7 @@ export class DbMysql implements DbInterface {
         this.dbHost = dbHost;
     }
     
-    public async connect(){
+    public async connect() {
         this.connection = await mysql.createConnection({
             host: this.dbHost.host,
             user: this.dbHost.user,
@@ -25,10 +25,13 @@ export class DbMysql implements DbInterface {
             multipleStatements: true,
             
         });
+        
+        return true;
     }
 
-    public async end(){
+    public async close() {
         await this.connection.end();
+        return true;
     }
 
     public async create(db: Db) {

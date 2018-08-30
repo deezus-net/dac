@@ -1,10 +1,7 @@
-import * as yaml from 'js-yaml';
-import {Db} from '../interfaces/db';
-import {DbColumn} from '../interfaces/dbColumn';
-import {DbIndex} from '../interfaces/dbIndex';
-import {ColumnDiff, DiffResult, ForeignKeyDiff, IndexDiff} from '../interfaces/diffResult';
-
-export const dbToYaml = (db: Db) => {
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+const yaml = require("js-yaml");
+exports.dbToYaml = (db) => {
     // trim property
     for (const tableName in db.tables) {
         for (const columnName in db.tables[tableName].columns) {
@@ -27,87 +24,72 @@ export const dbToYaml = (db: Db) => {
     }
     return yaml.safeDump(db);
 };
-
-export const yamlToDb = (src: string) => {
-    const db = yaml.safeLoad(src) as Db;
-
+exports.yamlToDb = (src) => {
+    const db = yaml.safeLoad(src);
     for (const tableName in db.tables) {
         for (const columnName in db.tables[tableName].columns) {
             if (!db.tables[tableName].columns[columnName].notNull) {
                 db.tables[tableName].columns[columnName].notNull = false;
             }
-
             if (db.tables[tableName].columns[columnName].id) {
                 db.tables[tableName].columns[columnName].pk = true;
                 db.tables[tableName].columns[columnName].notNull = true;
             }
-
             if (db.tables[tableName].columns[columnName].pk) {
                 db.tables[tableName].columns[columnName].notNull = true;
             }
-         
         }
-
         for (const indexName in db.tables[tableName].indexes) {
             if (!db.tables[tableName].indexes[indexName].unique) {
                 db.tables[tableName].indexes[indexName].unique = false;
             }
-
         }
     }
     return db;
 };
-
-export const equalColumn = (col1: DbColumn, col2: DbColumn) => {
-    
-    return col1.type === col2.type && 
-        col1.length || 0 === col2.length || 0 && 
-        col1.notNull || false === col2.notNull || false && 
-        col1.id || false === col2.id || false && 
-        col1.check || null === col2.check || null && 
+exports.equalColumn = (col1, col2) => {
+    return col1.type === col2.type &&
+        col1.length || 0 === col2.length || 0 &&
+        col1.notNull || false === col2.notNull || false &&
+        col1.id || false === col2.id || false &&
+        col1.check || null === col2.check || null &&
         col1.default || null === col2.default || null;
 };
-
-export const equalIndex = (index1: DbIndex, index2: DbIndex) => {
+exports.equalIndex = (index1, index2) => {
     const col1 = Object.keys(index1.columns).map(c => `${c},${index1.columns[c]}`).toString();
     const col2 = Object.keys(index2.columns).map(c => `${c},${index2.columns[c]}`).toString();
-    
-    return index1.unique === index2.unique && 
+    return index1.unique === index2.unique &&
         col1 === col2;
-        
 };
-
-export const checkDbDiff = (orgDb: Db, db: Db) => {
+exports.checkDbDiff = (orgDb, db) => {
     // tables
     let change = false;
     const orgTableNames = Object.keys(orgDb.tables).concat();
     const tableNames = Object.keys(db.tables);
-
     for (const tableName of orgTableNames.concat(tableNames)) {
         if (!db.tables[tableName]) {
             console.log(`- ${tableName}`);
             change = true;
-
-        } else if (!orgDb.tables[tableName]) {
+        }
+        else if (!orgDb.tables[tableName]) {
             console.log(`+ ${tableName}`);
             change = true;
-
-        } else {
+        }
+        else {
             // columns
-            let mes: string[] = [];
+            let mes = [];
             const orgColumnNames = Object.keys(orgDb.tables[tableName].columns);
             const columnNames = Object.keys(db.tables[tableName].columns);
-
             for (const columnName of orgColumnNames.concat(columnNames)) {
-                const columnMes: string[] = [];
+                const columnMes = [];
                 let columnChange = false;
                 if (!db.tables[tableName].columns[columnName]) {
                     columnMes.push(`  - ${columnName}`);
-                
-                } else if (!orgDb.tables[tableName].columns[columnName]) {
+                }
+                else if (!orgDb.tables[tableName].columns[columnName]) {
                     columnMes.push(`  + ${columnName}`);
-                
-                } else {
+                }
+                else {
                     if (orgDb.tables[tableName].columns[columnName].type !== db.tables[tableName].columns[columnName].type) {
                         columnMes.push(`      type: ${orgDb.tables[tableName].columns[columnName].type} -> ${db.tables[tableName].columns[columnName].type}`);
                         columnChange = true;
@@ -128,24 +110,21 @@ export const checkDbDiff = (orgDb: Db, db: Db) => {
                     mes = mes.concat(columnMes);
                 }
             }
-
             // indexes
             const orgIndexNames = Object.keys(orgDb.tables[tableName].indexes);
             const indexNames = Object.keys(db.tables[tableName].indexes);
-
             for (const indexName of orgIndexNames.concat(indexNames)) {
-                const indexMes: string[] = [];
+                const indexMes = [];
                 let indexChange = false;
                 if (!db.tables[tableName].indexes[indexName]) {
                     indexMes.push(`  - ${indexName}`);
-                
-                } else if (!orgDb.tables[tableName].indexes[indexName]) {
+                }
+                else if (!orgDb.tables[tableName].indexes[indexName]) {
                     indexMes.push(`  + ${indexName}`);
-                
-                } else {
+                }
+                else {
                     const orgIndexColumnNames = Object.keys(orgDb.tables[tableName].indexes[indexName].columns);
                     const indexColumnNames = Object.keys(db.tables[tableName].indexes[indexName].columns);
-
                     if (orgIndexColumnNames.toString() !== indexColumnNames.toString()) {
                         indexMes.push(`      columns: ${orgIndexColumnNames.join(',')} -> ${indexColumnNames.join(',')}`);
                         indexChange = true;
@@ -162,7 +141,6 @@ export const checkDbDiff = (orgDb: Db, db: Db) => {
                     mes = mes.concat(indexMes);
                 }
             }
-
             if (mes.length > 0) {
                 console.log(`# ${tableName}`);
                 mes.forEach(m => {
@@ -171,16 +149,13 @@ export const checkDbDiff = (orgDb: Db, db: Db) => {
                 change = true;
             }
         }
-        
     }
-
     if (!change) {
         console.log('no change');
     }
 };
-
-export const checkDbDiff2 = (orgDb: Db, db: Db) => {
-    const result: DiffResult = {
+exports.checkDbDiff2 = (orgDb, db) => {
+    const result = {
         addTableNames: [],
         deletedTableNames: [],
         modifiedTableNames: [],
@@ -193,41 +168,36 @@ export const checkDbDiff2 = (orgDb: Db, db: Db) => {
         addForeignKeys: {},
         deletedForeignKeyNames: [],
         modifiedForeignKeys: {}
-
     };
-    
     // tables
     const orgTableNames = Object.keys(orgDb.tables).concat();
     const tableNames = Object.keys(db.tables);
-
-    for (const tableName of distinct(orgTableNames, tableNames)) {
+    for (const tableName of exports.distinct(orgTableNames, tableNames)) {
         if (!db.tables[tableName]) {
             result.deletedTableNames.push(tableName);
-
-        } else if (!orgDb.tables[tableName]) {
+        }
+        else if (!orgDb.tables[tableName]) {
             result.addTableNames.push(tableName);
-
-        } else {
+        }
+        else {
             // columns
             const orgColumnNames = Object.keys(orgDb.tables[tableName].columns);
             const columnNames = Object.keys(db.tables[tableName].columns);
-
-            for (const columnName of distinct(orgColumnNames, columnNames)) {
+            for (const columnName of exports.distinct(orgColumnNames, columnNames)) {
                 if (!db.tables[tableName].columns[columnName]) {
                     if (!result.deletedColumnNames[tableName]) {
                         result.deletedColumnNames[tableName] = [];
                     }
                     result.deletedColumnNames[tableName].push(columnName);
-                    
-
-                } else if (!orgDb.tables[tableName].columns[columnName]) {
+                }
+                else if (!orgDb.tables[tableName].columns[columnName]) {
                     if (!result.addColumns[tableName]) {
                         result.addColumns[tableName] = [];
                     }
                     db.tables[tableName].columns[columnName].name = columnName;
                     result.addColumns[tableName].push(db.tables[tableName].columns[columnName]);
-
-                } else if (!equalColumn(orgDb.tables[tableName].columns[columnName], db.tables[tableName].columns[columnName])) {
+                }
+                else if (!exports.equalColumn(orgDb.tables[tableName].columns[columnName], db.tables[tableName].columns[columnName])) {
                     if (!result.modifiedColumns[tableName]) {
                         result.modifiedColumns[tableName] = [];
                     }
@@ -239,26 +209,24 @@ export const checkDbDiff2 = (orgDb: Db, db: Db) => {
                     });
                 }
             }
-
             // indexes
             const orgIndexNames = Object.keys(orgDb.tables[tableName].indexes || {});
             const indexNames = Object.keys(db.tables[tableName].indexes || {});
-
-            for (const indexName of distinct(orgIndexNames, indexNames) ) {
+            for (const indexName of exports.distinct(orgIndexNames, indexNames)) {
                 if (!(db.tables[tableName].indexes || {})[indexName]) {
                     if (!result.deletedIndexNames[tableName]) {
                         result.deletedIndexNames[tableName] = [];
                     }
                     result.deletedIndexNames[tableName].push(indexName);
-
-                } else if (!(orgDb.tables[tableName].indexes || {})[indexName]) {
+                }
+                else if (!(orgDb.tables[tableName].indexes || {})[indexName]) {
                     if (!result.addIndexes[tableName]) {
                         result.addIndexes[tableName] = [];
                     }
                     db.tables[tableName].indexes[indexName].name = indexName;
                     result.addIndexes[tableName].push(db.tables[tableName].indexes[indexName]);
-
-                } else if (!equalIndex(db.tables[tableName].indexes[indexName], orgDb.tables[tableName].indexes[indexName])) {
+                }
+                else if (!exports.equalIndex(db.tables[tableName].indexes[indexName], orgDb.tables[tableName].indexes[indexName])) {
                     if (!result.modifiedIndexes[tableName]) {
                         result.modifiedIndexes[tableName] = [];
                     }
@@ -268,17 +236,13 @@ export const checkDbDiff2 = (orgDb: Db, db: Db) => {
                         old: orgDb.tables[tableName].indexes[indexName],
                         new: db.tables[tableName].indexes[indexName]
                     });
-         
                 }
-                
             }
         }
-
     }
-
     return result;
 };
-
-export const distinct = (array1: string[], array2: string[]) => {
+exports.distinct = (array1, array2) => {
     return array1.concat(array2).filter((x, i, org) => org.indexOf(x) === i);
 };
+//# sourceMappingURL=utility.js.map

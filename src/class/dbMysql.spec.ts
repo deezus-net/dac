@@ -5,7 +5,8 @@ import {Db} from '../interfaces/db';
 import {DbHost} from '../interfaces/dbHost';
 import {DbMysql} from './dbMysql';
 import {dbToYaml, yamlToDb} from './utility';
-import {accessSync} from 'fs';
+import * as mysqlx from '@mysql/xdevapi';
+import {ColumnMetaData} from 'tedious';
 
 
 describe('dbMysql', () => {
@@ -22,11 +23,28 @@ describe('dbMysql', () => {
        
     });
     
+    it('test', async () => {
+        await new Promise(resolve => {
+            mysqlx.getSession({
+                host: 'localhost',
+                port: 33060,
+                password: 'dac',
+                user: 'dac',
+                schema: 'dac' // created by default
+            }).then(e => {
+                console.log(e);
+                resolve();
+            }).catch(e => {
+                console.log(e.stack);
+            });
+        });
+    });
+    
 
     it.skip('query', async () => {
         const query = mysql.query(db);
         console.log(query);
-        await mysql.end();
+        await mysql.close();
     });
 
     
@@ -34,15 +52,15 @@ describe('dbMysql', () => {
         await mysql.connect();
         const res = await mysql.create(db);
         expect(res).toBeTruthy();
-        await mysql.end();
+        await mysql.close();
 
     });
 
     it.skip('reCreate', async () => {
-            await mysql.connect();
+        await mysql.connect();
         const res = await mysql.reCreate(db);
         expect(res).toBeTruthy();
-        await mysql.end();
+        await mysql.close();
 
     });
 
@@ -51,20 +69,20 @@ describe('dbMysql', () => {
         const res = await mysql.extract();
         const text = dbToYaml(res);
         console.log(text);
-        await mysql.end();
+        await mysql.close();
 
     });
 
     it.skip ('update', async () => {
         await mysql.connect();
         const res = await mysql.update(db);
-        await mysql.end();
+        await mysql.close();
     });
 
     it.skip ('diff', async () => {
         await mysql.connect();
         const res = await mysql.diff(db);
-        await mysql.end();
+        await mysql.close();
     });
 
     afterAll(() => {
