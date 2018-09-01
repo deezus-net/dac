@@ -3,7 +3,8 @@ export const ColumnType = {
         {
             'integer': 'int',
             'character varying': 'varchar',
-            'serial': 'int'
+            'serial': 'int',
+            'timestamp without time zone': 'timestamp'
         },
 
     mysql: {}

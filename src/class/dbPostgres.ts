@@ -307,6 +307,7 @@ export class DbPostgres implements DbInterface {
         for (const row of data.rows) {
             await this.client.query(`DROP TABLE "${row['relname']}" CASCADE`);
         }
+        console.log(query);
         await this.client.query(query);
         await this.client.query('COMMIT');
 
@@ -320,7 +321,9 @@ export class DbPostgres implements DbInterface {
      */
     public async update(db: Db) {
         await this.client.query('BEGIN');
-
+        const diff = await this.diff(db);
+console.log(diff);
+        
         // get current tables
         const currentDb = await this.extract();
 
@@ -359,6 +362,7 @@ export class DbPostgres implements DbInterface {
                             ALTER TABLE 
                                 "${tableName}" 
                             ALTER COLUMN "${colName}" TYPE ${type}`;
+                        console.log(query);
                         await this.client.query(query);
                         change++;
 
@@ -460,7 +464,7 @@ export class DbPostgres implements DbInterface {
                             }
 
                         }
-                        query = DbPostgres.createAlterForeignKey(tableName, colName, fkName, foreignKey.update, foreignKey.delete);
+                        query = DbPostgres.createAlterForeignKey(fkName, tableName, colName, foreignKey.table, foreignKey.column, foreignKey.update, foreignKey.delete);
                         await this.client.query(query);
                         change++;
                     }
@@ -576,13 +580,23 @@ export class DbPostgres implements DbInterface {
             }
 
         }
+
+        // foregin key
+        for (const tableName of Object.keys(tables)) {
+            const table = tables[tableName];
+            for (const columnName of Object.keys(table.columns).filter(c => table.columns[c].fk)) {
+                for (const fkName of Object.keys(table.columns[columnName].fk)) {
+                    const fk = table.columns[columnName].fk[fkName];
+                    query.push(DbPostgres.createAlterForeignKey(fkName, tableName, columnName, fk.table, fk.column, fk.update, fk.delete));
+                }
+            }
+        }
+
         return query.join('\n');
 
     }
 
-    private static createAlterForeignKey(table: string, column: string, fk: string, onupdate: string, ondelete: string) {
-        const foreginTable = fk.split('.')[0];
-        const foreginColumn = fk.split('.')[1];
+    private static createAlterForeignKey(name: string, table: string, column: string, targetTable: string, targetColumn: string, onupdate: string, ondelete: string) {
 
         if (onupdate) {
             onupdate = ` ON UPDATE ${onupdate} `;
@@ -595,6 +609,6 @@ export class DbPostgres implements DbInterface {
         return `
             ALTER TABLE 
                 "${table}" 
-            ADD CONSTRAINT "fk_${table}_${column}" FOREIGN KEY ("${column}") REFERENCES "${foreginTable}"("${foreginColumn}")${onupdate}${ondelete};`;
+            ADD CONSTRAINT "${name}" FOREIGN KEY ("${column}") REFERENCES "${targetTable}"("${targetColumn}")${onupdate || ''}${ondelete || ''};`;
     }
 }

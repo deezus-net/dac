@@ -22,11 +22,11 @@ describe('postgres', () => {
         await core.execute(Command.create);
     });
     
-    it('extract', async () => {
+    it.skip('extract', async () => {
         await core.execute(Command.extract);
     });
 
-    it.skip('updte', async () => {
+    it('updte', async () => {
         await core.execute(Command.update);
     });
 
