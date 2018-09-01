@@ -1,7 +1,7 @@
 import {DbForeignKey} from './dbForeignKey';
 
 export interface DbColumn {
-    name?: string;
+ //   name?: string;
     displayName?: string;
     type?: string;
     length?: number;
@@ -9,9 +9,7 @@ export interface DbColumn {
     id?: boolean;
     notNull?: boolean;
     check?: string;
-    foreignKey?: { [key: string]: DbForeignKey };
+    fk?: { [key: string]: DbForeignKey };
     default?: string;
     comment?: string;
 }
-
-

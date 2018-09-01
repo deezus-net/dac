@@ -269,9 +269,10 @@ export class DbPostgres implements DbInterface {
                 const del = conf[row['confdeltype']] || '';
 
                 const key = row['foreign_table_name'] + '.' + row['foreign_column_name'];
-                tables[tableName].columns[columnName].foreignKey = {};
-                tables[tableName].columns[columnName].foreignKey[key] = {
-                    name: row['constraint_name'],
+                tables[tableName].columns[columnName].fk = {};
+                tables[tableName].columns[columnName].fk[row['constraint_name']] = {
+                    table: row['foreign_table_name'],
+                    column: row['foreign_column_name'],
                     update: update,
                     delete: del
                 };
@@ -291,7 +292,6 @@ export class DbPostgres implements DbInterface {
     public query(db: Db) {
         return this.createQuery(db.tables);
     }
-
 
     /**
      *
@@ -433,16 +433,16 @@ export class DbPostgres implements DbInterface {
                 // foregin key
                 const fks = [];
                 for (const colName of Object.keys(table.columns)) {
-                    if (!table.columns[colName].foreignKey) {
+                    if (!table.columns[colName].fk) {
                         continue;
                     }
 
-                    for (const fkName of Object.keys(table.columns[colName].foreignKey)) {
+                    for (const fkName of Object.keys(table.columns[colName].fk)) {
                         fks.push(fkName);
-                        const foreignKey = table.columns[colName].foreignKey[fkName];
+                        const foreignKey = table.columns[colName].fk[fkName];
                         const orgForeignKey = orgTable.columns[colName] &&
-                        orgTable.columns[colName].foreignKey != null &&
-                        Object.keys(orgTable.columns[colName].foreignKey).indexOf(fkName) !== -1 ? orgTable.columns[colName].foreignKey[fkName] : null;
+                        orgTable.columns[colName].fk != null &&
+                        Object.keys(orgTable.columns[colName].fk).indexOf(fkName) !== -1 ? orgTable.columns[colName].fk[fkName] : null;
 
                         if (orgForeignKey) {
 
@@ -451,7 +451,7 @@ export class DbPostgres implements DbInterface {
                                 query = `
                                     ALTER TABLE 
                                         "${tableName}" 
-                                    DROP CONSTRAINT "${orgForeignKey.name}";`;
+                                    DROP CONSTRAINT "${fkName}";`;
                                 await this.client.query(query);
                                 change++;
 
@@ -469,12 +469,12 @@ export class DbPostgres implements DbInterface {
 
                 // drop foreign key
                 for (const colName of Object.keys(orgTable.columns)) {
-                    if (!orgTable.columns[colName].foreignKey) {
+                    if (!orgTable.columns[colName].fk) {
                         continue;
                     }
-                    for (const fk of Object.keys(orgTable.columns[colName].foreignKey).filter(f => fks.indexOf(f) === -1)) {
+                    for (const fk of Object.keys(orgTable.columns[colName].fk).filter(f => fks.indexOf(f) === -1)) {
                         query = `
-                            ALTER TABLE "${tableName}" DROP CONSTRAINT "${orgTable.columns[colName].foreignKey[fk].name}";
+                            ALTER TABLE "${tableName}" DROP CONSTRAINT "${fk}";
                         `;
                         await this.client.query(query);
                         change++;

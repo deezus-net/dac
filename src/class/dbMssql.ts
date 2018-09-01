@@ -209,7 +209,7 @@ export class DbMssql implements DbInterface {
                 indexes[tableName] = {};
             }
             
-            if (row['is_primary_key'] == 'true') {
+            if (row['is_primary_key'] === 'true') {
                 pk[tableName].push(row['column_name']);
 
             } else {
@@ -386,13 +386,13 @@ export class DbMssql implements DbInterface {
             for (const row of await this.exec(query, {table: tableName})) {
                 
                 if (tables[tableName].columns[row['column_name']]) {
-                    if (!tables[tableName].columns[row['column_name']].foreignKey) {
-                        tables[tableName].columns[row['column_name']].foreignKey = {};
+                    if (!tables[tableName].columns[row['column_name']].fk) {
+                        tables[tableName].columns[row['column_name']].fk = {};
                     }
 
-                    const fkName = row['foreign_table'] + '.' + row['foreign_column'];
-                    tables[tableName].columns[row['column_name']].foreignKey[fkName] = {
-                        name: row['fk_name'],
+                    tables[tableName].columns[row['column_name']].fk[row['fk_name']] = {
+                        table: row['foreign_table'],
+                        column: row['foreign_column'],
                         update: row['onupdate'],
                         delete: row['ondelete']
                     };
@@ -530,18 +530,18 @@ export class DbMssql implements DbInterface {
 
 
                 // foregin key
-                for (const columnName of Object.keys(table.columns).filter(c => table.columns[c].foreignKey)) {
+                for (const columnName of Object.keys(table.columns).filter(c => table.columns[c].fk)) {
                     const column = table.columns[columnName];
-                    for (const f of Object.keys(column.foreignKey)) {
-                        const orgForeignKey = orgTable.columns[columnName] && orgTable.columns[columnName].foreignKey[f] ? orgTable.columns[columnName].foreignKey[f] : null;
-                        const foreginKey = column.foreignKey[f];
+                    for (const f of Object.keys(column.fk)) {
+                        const orgForeignKey = orgTable.columns[columnName] && orgTable.columns[columnName].fk[f] ? orgTable.columns[columnName].fk[f] : null;
+                        const foreginKey = column.fk[f];
                         if (orgForeignKey) {
                             if (foreginKey.update !== orgForeignKey.update || foreginKey.delete !== orgForeignKey.delete) {
                                 // drop
                                 query = `
                                     ALTER TABLE 
                                         [dbo].[${tableName}]
-                                    DROP CONSTRAINT [${orgForeignKey.name}];
+                                    DROP CONSTRAINT [${f}];
                                 `;
                                 await this.exec(query);
                                 change++;
@@ -558,16 +558,16 @@ export class DbMssql implements DbInterface {
                 }
 
                 // drop foreign key
-                const fks = Object.keys(table.columns).filter(c => table.columns[c].foreignKey).map(c => Object.keys(table.columns[c].foreignKey)[0]);
+                const fks = Object.keys(table.columns).filter(c => table.columns[c].fk).map(c => Object.keys(table.columns[c].fk)[0]);
                 for (const colName of Object.keys(orgTable.columns)) {
-                    if (!orgTable.columns[colName].foreignKey) {
+                    if (!orgTable.columns[colName].fk) {
                         continue;
                     }
-                    for (const fk of Object.keys(orgTable.columns[colName].foreignKey).filter(f => fks.indexOf(f) === -1)) {
+                    for (const fk of Object.keys(orgTable.columns[colName].fk).filter(f => fks.indexOf(f) === -1)) {
                         query = `
                             ALTER TABLE 
                                 [dbo].[${tableName}] 
-                            DROP CONSTRAINT [${orgTable.columns[colName].foreignKey[fk].name}];
+                            DROP CONSTRAINT [${fk}];
                         `;
                         await this.exec(query);
                         change++;
@@ -663,9 +663,9 @@ export class DbMssql implements DbInterface {
             // foreign key
             for (const columnName of Object.keys(table.columns)) {
                 const column = table.columns[columnName];
-                if (column.foreignKey) {
-                    for (const fkName of Object.keys(column.foreignKey)) {
-                        const foreignKey = column.foreignKey[fkName];
+                if (column.fk) {
+                    for (const fkName of Object.keys(column.fk)) {
+                        const foreignKey = column.fk[fkName];
                         fkQuery.push(DbMssql.createAlterForeignKey(tableName, columnName, fkName, foreignKey.update, foreignKey.delete));
                     }
                 }

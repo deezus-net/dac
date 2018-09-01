@@ -6,7 +6,7 @@ import {ColumnDiff, DiffResult, ForeignKeyDiff, IndexDiff} from '../interfaces/d
 
 export const dbToYaml = (db: Db) => {
     // trim property
-    /*for (const tableName in db.tables) {
+    for (const tableName in db.tables) {
         for (const columnName in db.tables[tableName].columns) {
             if (!db.tables[tableName].columns[columnName].notNull) {
                 delete db.tables[tableName].columns[columnName].notNull;
@@ -24,7 +24,7 @@ export const dbToYaml = (db: Db) => {
                 delete db.tables[tableName].columns[columnName].pk;
             }
         }
-    }*/
+    }
     return yaml.safeDump(db);
 };
 
@@ -121,15 +121,15 @@ export const checkDbDiff = (orgDb: Db, db: Db) => {
                     if (!result.addColumns[tableName]) {
                         result.addColumns[tableName] = [];
                     }
-                    db.tables[tableName].columns[columnName].name = columnName;
+                    // b.tables[tableName].columns[columnName].name = columnName;
                     result.addColumns[tableName].push(db.tables[tableName].columns[columnName]);
 
                 } else if (!equalColumn(orgDb.tables[tableName].columns[columnName], db.tables[tableName].columns[columnName])) {
                     if (!result.modifiedColumns[tableName]) {
                         result.modifiedColumns[tableName] = [];
                     }
-                    orgDb.tables[tableName].columns[columnName].name = columnName;
-                    db.tables[tableName].columns[columnName].name = columnName;
+                    // orgDb.tables[tableName].columns[columnName].name = columnName;
+                    // db.tables[tableName].columns[columnName].name = columnName;
                     result.modifiedColumns[tableName].push({
                         old: orgDb.tables[tableName].columns[columnName],
                         new: db.tables[tableName].columns[columnName]
@@ -192,7 +192,8 @@ export const trimDbProperties = (db: Db) => {
                 delete column.pk;
             }
         }
-
+        console.log(tableName)
+console.log(table.indexes)
         for (const indexName of Object.keys(table.indexes)) {
             const index = table.indexes[indexName];
             if (!index.unique) {
