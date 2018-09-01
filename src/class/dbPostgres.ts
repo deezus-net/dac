@@ -404,7 +404,7 @@ console.log(diff);
 
                 for (const indexName in table.indexes) {
                     const index = table.indexes[indexName];
-                    const orgIndex = orgTable.indexes[indexName];
+                    const orgIndex = (orgTable.indexes || {})[indexName];
 
                     if (!orgIndex) {
                         // add index
@@ -432,6 +432,12 @@ console.log(diff);
                         change++;
 
                     }
+                }
+
+                for (const delIndex of Object.keys(orgTable.indexes).filter(oi => !(table.indexes || {})[oi])) {
+                    query = `DROP INDEX "${delIndex}"`;
+                    await this.client.query(query);
+                    change++;
                 }
 
                 // foregin key
