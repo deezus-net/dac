@@ -22,11 +22,9 @@ describe('postgres', () => {
         await core.execute(Command.create);
     });
     
-    it.skip('extract', async () => {
-        await core.execute(Command.extract);
-    });
+   
 
-    it('updte', async () => {
+    it.skip('updte', async () => {
         await core.execute(Command.update);
     });
 
@@ -34,7 +32,12 @@ describe('postgres', () => {
         await core.execute(Command.reCreate);
     });
 
-    it.skip('diff', async () => {
-        await core.execute(Command.diff);
+    it('diff', async () => {
+        const diff = await core.execute(Command.diff);
+        console.log(diff);
+    });
+
+    it.skip('extract', async () => {
+        await core.execute(Command.extract);
     });
 });

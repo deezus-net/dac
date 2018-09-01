@@ -18,7 +18,7 @@ tables:
         id: true
       item_name:
         type: varchar
-        length: 100
+        length: 150
         notNull: true
       item_category_id:
         type: int
@@ -26,6 +26,21 @@ tables:
           fk_item_category_id:
             table: item_categories
             column: id
+      price:
+        type: int
       modified:
         type: timestamp
+    indexes:
+      ix_price:
+        columns:
+          price: asc
+          name: desc
+  shops:
+    columns:
+      id:
+        id: true
+      name:
+        type: varchar
+        length: 100
+        
         

@@ -1,10 +1,9 @@
 import * as yaml from 'js-yaml';
 import {Db} from '../interfaces/db';
 import {DbColumn} from '../interfaces/dbColumn';
+import { DbDiff } from '../interfaces/dbDiff';
 import {DbIndex} from '../interfaces/dbIndex';
-import {ColumnDiff, DiffResult, ForeignKeyDiff, IndexDiff} from '../interfaces/diffResult';
-import {forEachComment} from 'tslint';
-import ObjectContaining = jasmine.ObjectContaining;
+import {DbTable} from '../interfaces/dbTable';
 
 export const dbToYaml = (db: Db) => {
     // trim property
@@ -80,20 +79,10 @@ export const equalIndex = (index1: DbIndex, index2: DbIndex) => {
 };
 
 export const checkDbDiff = (orgDb: Db, db: Db) => {
-    const result: DiffResult = {
-        addTableNames: [],
+    const result: DbDiff = {
+        addedTables: {},
         deletedTableNames: [],
-        modifiedTableNames: [],
-        addColumns: {},
-        modifiedColumns: {},
-        deletedColumnNames: [],
-        addIndexes: {},
-        modifiedIndexes: {},
-        deletedIndexNames: [],
-        addForeignKeys: {},
-        deletedForeignKeyNames: [],
-        modifiedForeignKeys: {}
-
+        modifiedTables: {}
     };
     
     // tables
@@ -105,7 +94,7 @@ export const checkDbDiff = (orgDb: Db, db: Db) => {
             result.deletedTableNames.push(tableName);
 
         } else if (!orgDb.tables[tableName]) {
-            result.addTableNames.push(tableName);
+            result.addedTables[tableName] = db.tables[tableName];
 
         } else {
             // columns
@@ -114,28 +103,19 @@ export const checkDbDiff = (orgDb: Db, db: Db) => {
 
             for (const columnName of distinct(orgColumnNames, columnNames)) {
                 if (!db.tables[tableName].columns[columnName]) {
-                    if (!result.deletedColumnNames[tableName]) {
-                        result.deletedColumnNames[tableName] = [];
-                    }
-                    result.deletedColumnNames[tableName].push(columnName);
-                    
+                    initModifiedTable(result, tableName);
+                    result.modifiedTables[tableName].deletedColumnName.push(columnName);
+
                 } else if (!orgDb.tables[tableName].columns[columnName]) {
-                    if (!result.addColumns[tableName]) {
-                        result.addColumns[tableName] = [];
-                    }
-                    // b.tables[tableName].columns[columnName].name = columnName;
-                    result.addColumns[tableName].push(db.tables[tableName].columns[columnName]);
+                    initModifiedTable(result, tableName);
+                    result.modifiedTables[tableName].addedColumns[columnName] = db.tables[tableName].columns[columnName];
 
                 } else if (!equalColumn(orgDb.tables[tableName].columns[columnName], db.tables[tableName].columns[columnName])) {
-                    if (!result.modifiedColumns[tableName]) {
-                        result.modifiedColumns[tableName] = [];
-                    }
-                    // orgDb.tables[tableName].columns[columnName].name = columnName;
-                    // db.tables[tableName].columns[columnName].name = columnName;
-                    result.modifiedColumns[tableName].push({
-                        old: orgDb.tables[tableName].columns[columnName],
-                        new: db.tables[tableName].columns[columnName]
-                    });
+                    initModifiedTable(result, tableName);
+                    result.modifiedTables[tableName].modifiedColumns[columnName] = [
+                        orgDb.tables[tableName].columns[columnName],
+                        db.tables[tableName].columns[columnName]
+                    ];
                 }
             }
 
@@ -145,28 +125,20 @@ export const checkDbDiff = (orgDb: Db, db: Db) => {
 
             for (const indexName of distinct(orgIndexNames, indexNames) ) {
                 if (!(db.tables[tableName].indexes || {})[indexName]) {
-                    if (!result.deletedIndexNames[tableName]) {
-                        result.deletedIndexNames[tableName] = [];
-                    }
-                    result.deletedIndexNames[tableName].push(indexName);
+                    initModifiedTable(result, tableName);
+                    result.modifiedTables[tableName].deletedIndexNames.push(indexName);
 
                 } else if (!(orgDb.tables[tableName].indexes || {})[indexName]) {
-                    if (!result.addIndexes[tableName]) {
-                        result.addIndexes[tableName] = [];
-                    }
-                    db.tables[tableName].indexes[indexName].name = indexName;
-                    result.addIndexes[tableName].push(db.tables[tableName].indexes[indexName]);
+                    initModifiedTable(result, tableName);
+                    result.modifiedTables[tableName].addedIndexes[indexName] = db.tables[tableName].indexes[indexName];
 
                 } else if (!equalIndex(db.tables[tableName].indexes[indexName], orgDb.tables[tableName].indexes[indexName])) {
-                    if (!result.modifiedIndexes[tableName]) {
-                        result.modifiedIndexes[tableName] = [];
-                    }
-                    orgDb.tables[tableName].indexes[indexName].name = indexName;
+                    initModifiedTable(result, tableName);
                     db.tables[tableName].indexes[indexName].name = indexName;
-                    result.modifiedIndexes[tableName].push({
-                        old: orgDb.tables[tableName].indexes[indexName],
-                        new: db.tables[tableName].indexes[indexName]
-                    });
+                    result.modifiedTables[tableName].modifiedIndexes[indexName] = [
+                        orgDb.tables[tableName].indexes[indexName],
+                        db.tables[tableName].indexes[indexName]
+                    ];
          
                 }
                 
@@ -174,8 +146,26 @@ export const checkDbDiff = (orgDb: Db, db: Db) => {
         }
 
     }
-
+console.log(result);
     return result;
+};
+
+/**
+ * 
+ * @param {DbDiff} result
+ * @param {string} tableName
+ */
+const initModifiedTable = (result: DbDiff, tableName: string) => {
+    if (!result.modifiedTables[tableName]) {
+        result.modifiedTables[tableName] = {
+            addedColumns: [],
+            modifiedColumns: {},
+            deletedColumnName: [],
+            addedIndexes: [],
+            modifiedIndexes: {},
+            deletedIndexNames: []
+        };
+    }
 };
 
 /**

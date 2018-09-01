@@ -64,7 +64,7 @@ describe('DbPostgres', () => {
     it ('diff', async () => {
         await pg.connect();
         const res = await pg.diff(db);
-        console.log(res.modifiedIndexes['users']);
+        console.log(res);
         await pg.close();
     });
 

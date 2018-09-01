@@ -322,7 +322,6 @@ export class DbPostgres implements DbInterface {
     public async update(db: Db) {
         await this.client.query('BEGIN');
         const diff = await this.diff(db);
-console.log(diff);
         
         // get current tables
         const currentDb = await this.extract();
@@ -434,7 +433,7 @@ console.log(diff);
                     }
                 }
 
-                for (const delIndex of Object.keys(orgTable.indexes).filter(oi => !(table.indexes || {})[oi])) {
+                for (const delIndex of Object.keys((orgTable.indexes || {})).filter(oi => !(table.indexes || {})[oi])) {
                     query = `DROP INDEX "${delIndex}"`;
                     await this.client.query(query);
                     change++;
