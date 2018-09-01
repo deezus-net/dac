@@ -5,12 +5,13 @@ import {DbHost} from '../interfaces/dbHost';
 import {DbInterface} from '../interfaces/dbInterface';
 import {DbTable} from '../interfaces/dbTable';
 import {ColumnType} from './columnType';
-import {checkDbDiff2, equalColumn, equalIndex} from './utility';
+import {checkDbDiff, equalColumn, equalIndex, trimDbProperties} from './utility';
+import ObjectContaining = jasmine.ObjectContaining;
  
 export class DbPostgres implements DbInterface {
     private client: Client;
     private dbHost;
-    
+
     constructor(dbHost: DbHost) {
         try {
             this.dbHost = dbHost;
@@ -25,11 +26,19 @@ export class DbPostgres implements DbInterface {
         }
     }
 
+    /**
+     *
+     * @returns {Promise<boolean>}
+     */
     public async connect() {
         await this.client.connect();
         return true;
     }
-    
+
+    /**
+     *
+     * @returns {Promise<boolean>}
+     */
     public async close() {
         await this.client.end();
         return true;
@@ -48,12 +57,20 @@ export class DbPostgres implements DbInterface {
         return true;
     }
 
-    
+    /**
+     *
+     * @param {Db} db
+     * @returns {Promise<DiffResult>}
+     */
     public async diff(db: Db) {
         const orgDb = await this.extract();
-        return checkDbDiff2(orgDb, db);
+        return checkDbDiff(orgDb, db);
     }
 
+    /**
+     *
+     * @returns {Promise<{tables: {[p: string]: DbTable}}>}
+     */
     public async extract() {
         const tables: { [key: string]: DbTable } = {};
         const data = await this.client.query('SELECT relname FROM "pg_stat_user_tables"');
@@ -64,7 +81,8 @@ export class DbPostgres implements DbInterface {
             };
         }
 
-        for (const tableName in tables) {
+        for (const tableName of Object.keys(tables)) {
+            const table = tables[tableName];
 
             // get column list
             let query = `
@@ -87,7 +105,6 @@ export class DbPostgres implements DbInterface {
                 const length = row['character_maximum_length'] ? parseInt(row['character_maximum_length'], 10) : 0;
 
                 type = ColumnType.postgreSql[type] ? ColumnType.postgreSql[type] : type;
-
 
                 const column: DbColumn = {
                     type: type,
@@ -131,7 +148,6 @@ export class DbPostgres implements DbInterface {
                 }
             }
 
-
             // get index list
             query = `
                 SELECT 
@@ -166,15 +182,15 @@ export class DbPostgres implements DbInterface {
 
             // remove primarykey index
             const pkColumns: string[] = [];
-            for (const columnName in tables[tableName].columns) {
-                if (tables[tableName].columns[columnName].pk) {
+            for (const columnName of Object.keys(table.columns)) {
+                if (table.columns[columnName].pk) {
                     pkColumns.push(columnName);
                 }
             }
 
-            for (const indexName in tables[tableName].indexes) {
+            for (const indexName of Object.keys(table.indexes)) {
                 const columns = [];
-                for (const columnName in tables[tableName].indexes[indexName].columns) {
+                for (const columnName of Object.keys(table.indexes[indexName].columns)) {
                     columns.push(columnName);
                 }
                 if (columns.toString() === pkColumns.toString()) {
@@ -200,14 +216,12 @@ export class DbPostgres implements DbInterface {
             for (const row of checkData.rows) {
                 const consrc = (row['consrc'].match(/\((.*)\)/) || [])[1] || row['consrc'];
 
-
-                for (const colName in tables[tableName].columns) {
+                for (const colName in Object.keys(table.columns)) {
                     if (consrc.indexOf(colName) !== -1) {
-                        tables[tableName].columns[colName].check = consrc;
+                        table.columns[colName].check = consrc;
                     }
                 }
             }
-
 
             // get foreign key list
             query = `
@@ -264,8 +278,9 @@ export class DbPostgres implements DbInterface {
             }
         }
 
-
-        return {tables: tables};
+        const db = {tables: tables};
+        trimDbProperties(db);
+        return db;
     }
 
     /**
@@ -277,6 +292,233 @@ export class DbPostgres implements DbInterface {
         return this.createQuery(db.tables);
     }
 
+
+    /**
+     *
+     * @param {Db} db
+     * @returns {Promise<boolean>}
+     */
+    public async reCreate(db: Db) {
+        const query = this.createQuery(db.tables);
+        await this.client.query('BEGIN');
+
+        const tables = {};
+        const data = await this.client.query('SELECT relname FROM "pg_stat_user_tables"');
+        for (const row of data.rows) {
+            await this.client.query(`DROP TABLE "${row['relname']}" CASCADE`);
+        }
+        await this.client.query(query);
+        await this.client.query('COMMIT');
+
+        return true;
+    }
+
+    /**
+     *
+     * @param {Db} db
+     * @returns {Promise<void>}
+     */
+    public async update(db: Db) {
+        await this.client.query('BEGIN');
+
+        // get current tables
+        const currentDb = await this.extract();
+
+        let change = 0;
+        for (const tableName of Object.keys(db.tables)) {
+            const table = db.tables[tableName];
+            const orgTable = currentDb.tables[tableName];
+            let query;
+
+            if (orgTable) {
+                // alter
+                for (const colName of Object.keys(table.columns)) {
+                    const col = table.columns[colName];
+                    const orgCol = orgTable.columns[colName];
+
+                    if (!orgCol) {
+                        // add column
+                        let type = col.id ? 'serial' : col.type;
+                        if (col.length > 0) {
+                            type += `(${col.length})`;
+                        }
+                        query = `
+                            ALTER TABLE 
+                                "${tableName}"
+                            ADD COLUMN "${colName}" ${type} ${(col.notNull ? ' NOT NULL' : '')}`;
+                        await this.client.query(query);
+                        change++;
+
+                    } else if (!equalColumn(col, orgCol)) {
+                        // if change execute alter
+                        let type = col.id ? 'serial' : col.type;
+                        if (col.length > 0) {
+                            type += `(${col.length})`;
+                        }
+                        query = `
+                            ALTER TABLE 
+                                "${tableName}" 
+                            ALTER COLUMN "${colName}" TYPE ${type}`;
+                        await this.client.query(query);
+                        change++;
+
+                        if (col.notNull !== orgCol.notNull) {
+                            query = `
+                                ALTER TABLE 
+                                    "${tableName}"
+                                ALTER COLUMN "${colName}" ${(col.notNull ? 'SET NOT NULL' : 'DROP NOT NULL')}`;
+                            await this.client.query(query);
+                        }
+
+                        if (col.default) {
+                            query = `
+                                ALTER TABLE 
+                                    "${tableName}"
+                                ALTER COLUMN "${colName}" SET DEFAULT ${col.default}`;
+                            await this.client.query(query);
+                        }
+
+                        if (col.check) {
+                            query = `
+                                ALTER TABLE 
+                                    "${tableName}"
+                                ADD CHECK(${col.check})`;
+                            await this.client.query(query);
+                        }
+                    }
+                }
+
+                for (const delCol of Object.keys(orgTable.columns).filter(oc => Object.keys(table.columns).indexOf(oc) === -1)) {
+                    query = `
+                        ALTER TABLE 
+                            "${tableName}" 
+                        DROP COLUMN "${delCol}"`;
+                    await this.client.query(query);
+
+                    change++;
+                }
+
+                for (const indexName in table.indexes) {
+                    const index = table.indexes[indexName];
+                    const orgIndex = orgTable.indexes[indexName];
+
+                    if (!orgIndex) {
+                        // add index
+                        query = `
+                            CREATE 
+                                ${(index.unique ? 'UNIQUE ' : '')}INDEX "${indexName}" 
+                            ON 
+                                "${tableName}" (${Object.keys(index.columns).map(c => `"${c}"`).join(',')});
+                        `;
+                        await this.client.query(query);
+                        change++;
+
+                    } else if (!equalIndex(index, orgIndex)) {
+                        // if change execute drop/create
+                        query = `
+                            DROP INDEX "${indexName}"`;
+                        await this.client.query(query);
+
+                        query = `
+                            CREATE 
+                                ${(index.unique ? 'UNIQUE ' : '')}INDEX "${indexName}"
+                            ON 
+                                "${tableName}" (${Object.keys(index.columns).map(c => `"${c}"`).join(',')});`;
+                        await this.client.query(query);
+                        change++;
+
+                    }
+                }
+
+                // foregin key
+                const fks = [];
+                for (const colName of Object.keys(table.columns)) {
+                    if (!table.columns[colName].foreignKey) {
+                        continue;
+                    }
+
+                    for (const fkName of Object.keys(table.columns[colName].foreignKey)) {
+                        fks.push(fkName);
+                        const foreignKey = table.columns[colName].foreignKey[fkName];
+                        const orgForeignKey = orgTable.columns[colName] &&
+                        orgTable.columns[colName].foreignKey != null &&
+                        Object.keys(orgTable.columns[colName].foreignKey).indexOf(fkName) !== -1 ? orgTable.columns[colName].foreignKey[fkName] : null;
+
+                        if (orgForeignKey) {
+
+                            if (foreignKey.update !== orgForeignKey.update || foreignKey.delete !== orgForeignKey.delete) {
+                                // drop
+                                query = `
+                                    ALTER TABLE 
+                                        "${tableName}" 
+                                    DROP CONSTRAINT "${orgForeignKey.name}";`;
+                                await this.client.query(query);
+                                change++;
+
+                            } else {
+                                continue;
+                            }
+
+                        }
+                        query = DbPostgres.createAlterForeignKey(tableName, colName, fkName, foreignKey.update, foreignKey.delete);
+                        await this.client.query(query);
+                        change++;
+                    }
+
+                }
+
+                // drop foreign key
+                for (const colName of Object.keys(orgTable.columns)) {
+                    if (!orgTable.columns[colName].foreignKey) {
+                        continue;
+                    }
+                    for (const fk of Object.keys(orgTable.columns[colName].foreignKey).filter(f => fks.indexOf(f) === -1)) {
+                        query = `
+                            ALTER TABLE "${tableName}" DROP CONSTRAINT "${orgTable.columns[colName].foreignKey[fk].name}";
+                        `;
+                        await this.client.query(query);
+                        change++;
+                    }
+                }
+
+            } else {
+                // create
+                const data = {};
+                data[tableName] = table;
+                query = this.createQuery(data);
+                await this.client.query(query);
+            }
+
+        }
+
+        // drop tables
+        for (const tableName of Object.keys(currentDb.tables).filter(t => Object.keys(db.tables).indexOf(t) === -1)) {
+            const query = `
+                DROP TABLE "${tableName}" CASCADE
+            `;
+            await this.client.query(query);
+        }
+
+        await this.client.query('COMMIT');
+
+        if (change === 0) {
+            console.log('nothing is changed');
+        }
+
+        return true;
+
+    }
+
+    /**
+     * execute query
+     * @param {string} query
+     * @returns {Promise<QueryResult>}
+     */
+    public async exec(query: string) {
+        const res = await this.client.query(query);
+        return res;
+    }
+
     /**
      *
      * @param {{[key: string]: DbTable}} tables
@@ -284,13 +526,15 @@ export class DbPostgres implements DbInterface {
      */
     private createQuery(tables: { [key: string]: DbTable }) {
         const query: string[] = [];
-        for (const tableName in tables) {
+        for (const tableName of Object.keys(tables)) {
+            const table = tables[tableName];
+
             query.push(`CREATE TABLE ${tableName}(`);
 
             const columnQuery: string[] = [];
             const pk: string[] = [];
-            for (const columnName in tables[tableName].columns) {
-                const column = tables[tableName].columns[columnName];
+            for (const columnName of Object.keys(table.columns)) {
+                const column = table.columns[columnName];
                 if (column.id) {
                     column.notNull = true;
                     column.type = 'serial';
@@ -336,236 +580,7 @@ export class DbPostgres implements DbInterface {
 
     }
 
-    /**
-     *
-     * @param {Db} db
-     * @returns {Promise<boolean>}
-     */
-    public async reCreate(db: Db) {
-        const query = this.createQuery(db.tables);
-        await this.client.query('BEGIN');
-
-        const tables = {};
-        const data = await this.client.query('SELECT relname FROM "pg_stat_user_tables"');
-        for (const row of data.rows) {
-            await this.client.query(`DROP TABLE "${row['relname']}" CASCADE`);
-        }
-        await this.client.query(query);
-        await this.client.query('COMMIT');
-
-        return true;
-    }
-
-    /**
-     *
-     * @param {Db} db
-     * @returns {Promise<void>}
-     */
-    public async update(db: Db) {
-        await this.client.query('BEGIN');
-
-        // get current tables
-        const currentDb = await this.extract();
-
-        let change = 0;
-        for (const tableName in db.tables) {
-            const table = db.tables[tableName];
-            const orgTable = currentDb.tables[tableName];
-            
-            if (orgTable) {
-                // alter
-                for (const colName in table.columns) {
-                    const col = table.columns[colName];
-                    const orgCol = orgTable.columns[colName];
-
-                    if (!orgCol) {
-                        // add column
-                        let type = col.id ? 'serial' : col.type;
-                        if (col.length > 0) {
-                            type += `(${col.length})`;
-                        }
-                        const query = `
-                            ALTER TABLE 
-                                "${tableName}"
-                            ADD COLUMN "${colName}" ${type} ${(col.notNull ? ' NOT NULL' : '')}`;
-                        await this.client.query(query);
-                        change++;
-
-                    } else if (!equalColumn(col, orgCol)) {
-                        // if change execute alter
-                        let type = col.id ? 'serial' : col.type;
-                        if (col.length > 0) {
-                            type += `(${col.length})`;
-                        }
-                        let query = `ALTER TABLE "${tableName}" ALTER COLUMN "${colName}" TYPE ${type}`;
-                        await this.client.query(query);
-                        change++;
-
-
-                        if (col.notNull !== orgCol.notNull) {
-                            query = `
-                                ALTER TABLE 
-                                    "${tableName}"
-                                ALTER COLUMN "${colName}" ${(col.notNull ? 'SET NOT NULL' : 'DROP NOT NULL')}`;
-                            await this.client.query(query);
-                        }
-
-                        if (col.default) {
-                            query = `
-                                ALTER TABLE 
-                                    "${tableName}"
-                                ALTER COLUMN "${colName}" SET DEFAULT ${col.default}`;
-                            await this.client.query(query);
-                        }
-
-                        if (col.check) {
-                            query = `
-                                ALTER TABLE 
-                                    "${tableName}"
-                                ADD CHECK(${col.check})`;
-                            await this.client.query(query);
-                        }
-                    }
-                }
-
-                for (const delCol of Object.keys(orgTable.columns).filter(oc => Object.keys(table.columns).indexOf(oc) === -1)) {
-                    const query = `
-                                ALTER TABLE 
-                                    "${tableName}" 
-                                DROP COLUMN "${delCol}"`;
-                    await this.client.query(query);
-                    
-                    change++;
-                }
-
-
-                for (const indexName in table.indexes) {
-                    const index = table.indexes[indexName];
-                    const orgIndex = orgTable.indexes[indexName];
-
-                    if (!orgIndex) {
-                        // add index
-                        const query = `
-                                CREATE 
-                                    ${(index.unique ? 'UNIQUE ' : '')}INDEX "${indexName}" 
-                                ON 
-                                    "${tableName}" (${Object.keys(index.columns).map(c => `"${c}"`).join(',')});
-                            `;
-                        await this.client.query(query);
-                        change++;
-
-                    } else if (!equalIndex(index, orgIndex)) {
-                        // if change execute drop/create
-                        let query = `
-                                    DROP INDEX "${indexName}"`;
-                        await this.client.query(query);
-
-                        query = `
-                                CREATE 
-                                    ${(index.unique ? "UNIQUE " : "")}INDEX "${indexName}"
-                                ON 
-                                    "${tableName}" (${Object.keys(index.columns).map(c => `"${c}"`).join(',')});`;
-                        await this.client.query(query);
-                        change++;
-
-                    }
-                }
-
-
-                // foregin key
-                const fks = [];
-                for (const colName in table.columns) {
-                    if (!table.columns[colName].foreignKey) {
-                        continue;
-                    }
-
-                    for (const fkName in table.columns[colName].foreignKey) {
-                        fks.push(fkName);
-                        const foreignKey = table.columns[colName].foreignKey[fkName];
-                        const orgForeignKey = orgTable.columns[colName] &&
-                        orgTable.columns[colName].foreignKey != null &&
-                        Object.keys(orgTable.columns[colName].foreignKey).indexOf(fkName) !== -1 ? orgTable.columns[colName].foreignKey[fkName] : null;
-
-                        if (orgForeignKey) {
-
-                            if (foreignKey.update != orgForeignKey.update || foreignKey.delete != orgForeignKey.delete) {
-                                // drop
-                                const query = `
-                                        ALTER TABLE 
-                                            "${tableName}" 
-                                        DROP CONSTRAINT "${orgForeignKey.name}";`;
-                                await this.client.query(query);
-                                change++;
-
-                            }
-                            else {
-                                continue;
-                            }
-
-                        }
-                        const query = this.createAlterForeignKey(tableName, colName, fkName, foreignKey.update, foreignKey.delete);
-                        await this.client.query(query);
-                        change++;
-                    }
-
-
-                }
-
-                // drop foreign key
-                for (const colName in orgTable.columns) {
-                    if (!orgTable.columns[colName].foreignKey) {
-                        continue;
-                    }
-                    for (const fk of Object.keys(orgTable.columns[colName].foreignKey).filter(f => fks.indexOf(f) === -1)) {
-                        const query = `
-                            ALTER TABLE "${tableName}" DROP CONSTRAINT "${orgTable.columns[colName].foreignKey[fk].name}";
-                        `;
-                        await this.client.query(query);
-                        change++;
-                    }
-                }
-
-
-            } else {
-                // create
-                const data = {};
-                data[tableName] = table;
-                const query = this.createQuery(data);
-                await this.client.query(query);
-            }
-
-
-        }
-
-        // drop tables
-        for (const tableName of Object.keys(currentDb.tables).filter(t => Object.keys(db.tables).indexOf(t) === -1)) {
-            const query = `
-                DROP TABLE "${tableName}" CASCADE
-            `;
-            await this.client.query(query);
-        }
-
-        await this.client.query('COMMIT');
-
-        if (change === 0) {
-            console.log("nothing is changed");
-        }
-
-        return true;
-
-    }
-
-    /**
-     * execute query
-     * @param {string} query
-     * @returns {Promise<QueryResult>}
-     */
-    public async exec(query: string) {
-        const res = await this.client.query(query);
-        return res;
-    }
-
-    private createAlterForeignKey(table: string, column: string, fk: string, onupdate: string, ondelete: string) {
+    private static createAlterForeignKey(table: string, column: string, fk: string, onupdate: string, ondelete: string) {
         const foreginTable = fk.split('.')[0];
         const foreginColumn = fk.split('.')[1];
 

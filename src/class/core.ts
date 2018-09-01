@@ -1,18 +1,15 @@
-﻿import { DbHost } from '../interfaces/dbHost';
+﻿import * as fs from 'fs';
 import * as yaml from 'js-yaml';
-import {promisify} from 'util';
-import * as fs from 'fs';
-import { DbInterface} from '../interfaces/dbInterface';
-
-import ObjectContaining = jasmine.ObjectContaining;
-import {Create, Diff, Extract, MsSql, Mysql, Postgres, ReCreate, Update} from './define';
-import {DbMysql} from './dbMysql';
-import {load} from 'js-yaml';
-import {DbPostgres} from './dbPostgres';
-import {DbMssql} from './dbMssql';
-import {Db} from '../interfaces/db';
-import {dbToYaml, yamlToDb} from './utility';
 import * as path from 'path';
+import {promisify} from 'util';
+import {Db} from '../interfaces/db';
+import { DbHost } from '../interfaces/dbHost';
+import { DbInterface} from '../interfaces/dbInterface';
+import {DbMssql} from './dbMssql';
+import {DbMysql} from './dbMysql';
+import {DbPostgres} from './dbPostgres';
+import {Command, DbType} from './define';
+import {dbToYaml, trimDbProperties, yamlToDb} from './utility';
 
 export class Core {
     private dbHosts: DbHost[] = [];
@@ -36,7 +33,8 @@ export class Core {
             } else {
                 this.dbHosts = Object.keys(hosts).map(n => {
                     hosts[n].name = n;
-                    return hosts[n]});
+                    return hosts[n];
+                });
             }
             
         } else {
@@ -65,35 +63,35 @@ export class Core {
      * @param {string} command
      * @returns {Promise<void>}
      */
-    public async execute(command: string){
-        for (const dbHost of this.dbHosts){
+    public async execute(command: string) {
+        for (const dbHost of this.dbHosts) {
             let db: DbInterface;
             switch (dbHost.type) {
-                case Mysql:
+                case DbType.mysql:
                     db = new DbMysql(dbHost);
                     break;
-                case Postgres:
+                case DbType.postgres:
                     db = new DbPostgres(dbHost);
                     break;
-                case MsSql:
+                case DbType.msSql:
                     db = new DbMssql(dbHost);
                     break;
             }
             await db.connect();
             switch (command) {
-                case Extract:
+                case Command.extract:
                     await this.extract(db, dbHost.name);
                     break;
-                case Create:
+                case Command.create:
                     await this.create(db);
                     break;
-                case ReCreate:
+                case Command.reCreate:
                     await this.reCreate(db);
                     break;
-                case Update:
+                case Command.update:
                     await this.update(db);
                     break;
-                case Diff:
+                case Command.diff:
                     await this.diff(db);
                     break;
             }
@@ -105,12 +103,13 @@ export class Core {
     /**
      * 
      * @param {DbInterface} db
+     * @param {string} name
      * @returns {Promise<void>}
      */
     private async extract(db: DbInterface, name: string) {
         const data = await db.extract();
-        const yaml = dbToYaml(data);
-        await promisify(fs.writeFile)(path.join(this.outDir, `${name}.yaml`), yaml);
+        trimDbProperties(data);
+        await promisify(fs.writeFile)(path.join(this.outDir, `${name}.yaml`), dbToYaml(data));
     }
 
     /**

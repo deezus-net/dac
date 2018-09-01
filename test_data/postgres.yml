@@ -1,0 +1,27 @@
+tables:
+  item_categories:
+    columns:
+      id:
+        id: true
+      category_name:
+        type: varchar
+        length: 100
+      modified:
+        type: timestamp
+    indexes:
+      ix_category_name:
+        columns:
+          category_name: asc
+  items:
+    columns:
+      id:
+        id: true
+      item_name:
+        type: varchar
+        length: 100
+        notNull: true
+      item_category_id:
+        type: int
+      modified:
+        type: timestamp
+        

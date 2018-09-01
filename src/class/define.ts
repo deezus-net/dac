@@ -1,9 +1,14 @@
-export const Mysql = 'mysql';
-export const Postgres = 'postgres';
-export const MsSql = 'mssql';
+export class DbType {
+    public static mysql = 'mysql';
+    public static postgres = 'postgres';
+    public static msSql = 'mssql';
+}
 
-export const Extract = 'extract';
-export const Create = 'create';
-export const ReCreate = 'recreate';
-export const Update = 'update';
-export const Diff = 'diff';
+export class Command {
+    public static query = 'query';
+    public static extract = 'extract';
+    public static create = 'create';
+    public static reCreate = 'recreate';
+    public static update = 'update';
+    public static diff = 'diff';
+}
