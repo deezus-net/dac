@@ -54,6 +54,7 @@ export class Core {
         if (args.input) {
             const dbText = await promisify(fs.readFile)(args.input, 'utf8');
             this.db = yamlToDb(dbText);
+            trimDbProperties(this.db);
         }
         this.outDir = args.outDir;
     }

@@ -42,5 +42,21 @@ tables:
       name:
         type: varchar
         length: 100
+  shop_items:
+    columns:
+      shop_id:
+        type: int
+        pk: true
+        fk:
+          fk_shop_id:
+            table: shops
+            column: id
+      item_id:
+        type: int
+        pk: true
+        fk:
+          fk_item_id:
+            table: items
+            column: id
         
         

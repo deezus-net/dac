@@ -4,6 +4,7 @@ import {DbColumn} from '../interfaces/dbColumn';
 import { DbDiff } from '../interfaces/dbDiff';
 import {DbIndex} from '../interfaces/dbIndex';
 import {DbTable} from '../interfaces/dbTable';
+import ObjectContaining = jasmine.ObjectContaining;
 
 export const dbToYaml = (db: Db) => {
     // trim property
@@ -61,12 +62,34 @@ export const yamlToDb = (src: string) => {
 
 export const equalColumn = (col1: DbColumn, col2: DbColumn) => {
 
+    // foreign key check
+    const fkName1 = Object.keys(col1.fk || {});
+    const fkName2 = Object.keys(col2.fk || {});
+
+    let fkDiff = false;
+    for (const fkName of distinct(fkName1, fkName2)) {
+        if (fkName1.indexOf(fkName) === -1 || fkName2.indexOf(fkName) === -1) {
+            fkDiff = true;
+            break;
+        }
+
+        if ((col1.fk[fkName].update !== col2.fk[fkName].update) || 
+            (col1.fk[fkName].delete !== col2.fk[fkName].delete) ||
+            (col1.fk[fkName].table !== col2.fk[fkName].table) ||
+            (col1.fk[fkName].column !== col2.fk[fkName].column)) {
+            fkDiff = true;
+            break;
+        }
+    }
+    
     return (col1.type || null) === (col2.type || null) && 
         (col1.length || 0) === (col2.length || 0) && 
         (col1.notNull || false) === (col2.notNull || false) && 
         (col1.id || false) === (col2.id || false) && 
         (col1.check || null) === (col2.check || null) && 
-        (col1.default || null) === (col2.default || null);
+        (col1.default || null) === (col2.default || null) &&
+        fkName1.toString() === fkName2.toString() &&
+        !fkDiff;
 };
 
 export const equalIndex = (index1: DbIndex, index2: DbIndex) => {
@@ -77,6 +100,7 @@ export const equalIndex = (index1: DbIndex, index2: DbIndex) => {
         col1 === col2;
         
 };
+
 
 export const checkDbDiff = (orgDb: Db, db: Db) => {
     const result: DbDiff = {
@@ -197,8 +221,9 @@ export const trimDbProperties = (db: Db) => {
 
             if (!column.pk) {
                 delete column.pk;
+            } else {
+                column.notNull = true;
             }
-
             if (!column.notNull) {
                 delete column.notNull;
             }
@@ -220,7 +245,7 @@ export const trimDbProperties = (db: Db) => {
 
         }
 
-        for (const indexName of Object.keys(table.indexes)) {
+        for (const indexName of Object.keys(table.indexes || {})) {
             const index = table.indexes[indexName];
             if (!index.unique) {
                 delete index.unique;
@@ -231,7 +256,7 @@ export const trimDbProperties = (db: Db) => {
             }
         }
         
-        if (Object.keys(table.indexes).length === 0) {
+        if (Object.keys(table.indexes || {}).length === 0) {
             delete table.indexes;
         }
     }

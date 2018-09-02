@@ -5,7 +5,7 @@ import {DbHost} from '../interfaces/dbHost';
 import {DbInterface} from '../interfaces/dbInterface';
 import {DbTable} from '../interfaces/dbTable';
 import {ColumnType} from './columnType';
-import {checkDbDiff, dbToYaml, equalColumn, equalIndex, trimDbProperties} from './utility';
+import {checkDbDiff, dbToYaml, distinct, equalColumn, equalIndex, trimDbProperties} from './utility';
 import ObjectContaining = jasmine.ObjectContaining;
 import {publicDecrypt} from 'crypto';
  
@@ -322,14 +322,14 @@ export class DbPostgres implements DbInterface {
     public async update(db: Db) {
         const diff = await this.diff(db);
         const query = [];
-        const addFks = [];
-        const deleteFks = [];
-        
+        const createFkQuery = [];
+        const dropFkQuery = [];
+
         // add tables
         if (Object.keys(diff.addedTables).length > 0) {
             query.push(this.createQuery(diff.addedTables));
         }
-        
+
         for (const tableName of Object.keys(diff.modifiedTables)) {
             const table = diff.modifiedTables[tableName];
 
@@ -343,11 +343,11 @@ export class DbPostgres implements DbInterface {
                 query.push(`ALTER TABLE`);
                 query.push(`    "${tableName}"`);
                 query.push(`ADD COLUMN "${columnName}" ${type}${(column.notNull ? ' NOT NULL' : '')};`);
-                
-                if (column.fk) {
-                    addFks.push(column.fk);
-                } 
 
+                for (const fkName of Object.keys(column.fk)) {
+                    const fk = column.fk[fkName];
+                    createFkQuery.push(DbPostgres.createAlterForeignKey(fkName, tableName, columnName, fk.table, fk.column, fk.update, fk.delete));
+                }
             }
 
             // modify columns
@@ -383,6 +383,41 @@ export class DbPostgres implements DbInterface {
                     query.push(`    "${tableName}"`);
                     query.push(`ADD CHECK(${newColumn.check});`);
                 }
+
+                // foreign key
+                const orgFkName = Object.keys(orgColumn.fk || {});
+                const newFkName = Object.keys(newColumn.fk || {});
+
+                for (const fkName of distinct(orgFkName, newFkName)) {
+                    if (orgFkName.indexOf(fkName) === -1) {
+                        const fk = newColumn.fk[fkName];
+                        createFkQuery.push(DbPostgres.createAlterForeignKey(fkName, tableName, columnName, fk.table, fk.column, fk.update, fk.delete));
+
+                        continue;
+                    }
+
+                    if (newFkName.indexOf(fkName) === -1) {
+
+                        dropFkQuery.push(`ALTER TABLE`);
+                        dropFkQuery.push(`    "${tableName}"`);
+                        dropFkQuery.push(`DROP CONSTRAINT "${fkName}";`);
+
+                        continue;
+                    }
+
+                    if ((orgColumn.fk[fkName].update !== newColumn.fk[fkName].update) ||
+                        (orgColumn.fk[fkName].delete !== newColumn.fk[fkName].delete) ||
+                        (orgColumn.fk[fkName].table !== newColumn.fk[fkName].table) ||
+                        (orgColumn.fk[fkName].column !== newColumn.fk[fkName].column)) {
+
+                        dropFkQuery.push(`ALTER TABLE`);
+                        dropFkQuery.push(`    "${tableName}"`);
+                        dropFkQuery.push(`DROP CONSTRAINT "${fkName}";`);
+
+                        const fk = newColumn.fk[fkName];
+                        createFkQuery.push(DbPostgres.createAlterForeignKey(fkName, tableName, columnName, fk.table, fk.column, fk.update, fk.delete));
+                    }
+                }
             }
 
             // drop columns
@@ -391,43 +426,44 @@ export class DbPostgres implements DbInterface {
                 query.push(`    "${tableName}"`);
                 query.push(`DROP COLUMN "${columnName}";`);
             }
-            
+
             // create index
-            for (const indexName of Object.keys(table.addedIndexes)){
+            for (const indexName of Object.keys(table.addedIndexes)) {
                 const index = table.addedIndexes[indexName];
                 query.push(`CREATE`);
                 query.push(`    ${(index.unique ? 'UNIQUE ' : '')}INDEX "${indexName}"`);
                 query.push(`ON`);
                 query.push(`    "${tableName}" (${Object.keys(index.columns).map(c => `"${c}"`).join(',')});`);
-            } 
-            
+            }
+
             // modify index
             for (const indexName of Object.keys(table.modifiedIndexes)) {
-                const [ , index ] = table.modifiedIndexes[indexName];
+                const [, index] = table.modifiedIndexes[indexName];
 
                 query.push(`DROP INDEX "${indexName}";`);
 
-                query.push(`CREATE`); 
+                query.push(`CREATE`);
                 query.push(`    ${(index.unique ? 'UNIQUE ' : '')}INDEX "${indexName}"`);
                 query.push(`ON`);
                 query.push(`    "${tableName}" (${Object.keys(index.columns).map(c => `"${c}"`).join(',')});`);
             }
-            
+
             // drop index
             for (const indexName of table.deletedIndexNames) {
                 query.push(`DROP INDEX "${indexName}";`);
             }
 
         }
-        
+
         // delete table
         for (const tableName of diff.deletedTableNames) {
             query.push(`DROP TABLE "${tableName}" CASCADE;`);
         }
-        
 
+        console.log(dropFkQuery.join('\n'));
+        console.log(createFkQuery.join('\n'))
         console.log(query.join('\n'));
-        
+
         /*
         
         // get current tables
@@ -615,12 +651,12 @@ export class DbPostgres implements DbInterface {
             await this.client.query(query);
         }
 */
-        if (query.length > 0) {
+        if (query.length > 0 || createFkQuery.length > 0 || dropFkQuery.length > 0) {
             await this.client.query('BEGIN');
-            await this.client.query(query.join('\n'));
+            await this.client.query(query.join('\n') + dropFkQuery.join('\n') + createFkQuery.join('\n'));
             await this.client.query('COMMIT');
-        
-        } else  {
+
+        } else {
             console.log('nothing is changed');
         }
 
@@ -678,7 +714,7 @@ export class DbPostgres implements DbInterface {
                 pk.forEach(p => {
                     pkQuery.push(`        ${p}`);
                 });
-                query.push(pkQuery.join('\n'));
+                query.push(pkQuery.join(',\n'));
                 query.push('    )');
             }
             query.push(');');
