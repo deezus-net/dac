@@ -34,7 +34,7 @@ tables:
       ix_price:
         columns:
           price: asc
-          name: desc
+          item_name: asc
   shops:
     columns:
       id:

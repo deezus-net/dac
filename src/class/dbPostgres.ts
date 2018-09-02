@@ -5,8 +5,9 @@ import {DbHost} from '../interfaces/dbHost';
 import {DbInterface} from '../interfaces/dbInterface';
 import {DbTable} from '../interfaces/dbTable';
 import {ColumnType} from './columnType';
-import {checkDbDiff, equalColumn, equalIndex, trimDbProperties} from './utility';
+import {checkDbDiff, dbToYaml, equalColumn, equalIndex, trimDbProperties} from './utility';
 import ObjectContaining = jasmine.ObjectContaining;
+import {publicDecrypt} from 'crypto';
  
 export class DbPostgres implements DbInterface {
     private client: Client;
@@ -173,7 +174,7 @@ export class DbPostgres implements DbInterface {
                     continue;
                 }
                 for (const col of m.replace('(', '').replace(')', '').split(',')) {
-                    const tmp = col.split(' ');
+                    const tmp = col.trim().split(' ');
                     if (tables[tableName].columns[tmp[0]]) {
                         tables[tableName].indexes[indexName].columns[tmp[0]] = tmp.Length > 1 ? tmp[1] : 'ASC';
                     }
@@ -307,7 +308,6 @@ export class DbPostgres implements DbInterface {
         for (const row of data.rows) {
             await this.client.query(`DROP TABLE "${row['relname']}" CASCADE`);
         }
-        console.log(query);
         await this.client.query(query);
         await this.client.query('COMMIT');
 
@@ -320,8 +320,115 @@ export class DbPostgres implements DbInterface {
      * @returns {Promise<void>}
      */
     public async update(db: Db) {
-        await this.client.query('BEGIN');
         const diff = await this.diff(db);
+        const query = [];
+        const addFks = [];
+        const deleteFks = [];
+        
+        // add tables
+        if (Object.keys(diff.addedTables).length > 0) {
+            query.push(this.createQuery(diff.addedTables));
+        }
+        
+        for (const tableName of Object.keys(diff.modifiedTables)) {
+            const table = diff.modifiedTables[tableName];
+
+            // add columns
+            for (const columnName of Object.keys(table.addedColumns)) {
+                const column = table.addedColumns[columnName];
+                let type = column.id ? 'serial' : column.type;
+                if (column.length > 0) {
+                    type += `(${column.length})`;
+                }
+                query.push(`ALTER TABLE`);
+                query.push(`    "${tableName}"`);
+                query.push(`ADD COLUMN "${columnName}" ${type}${(column.notNull ? ' NOT NULL' : '')};`);
+                
+                if (column.fk) {
+                    addFks.push(column.fk);
+                } 
+
+            }
+
+            // modify columns
+            for (const columnName of Object.keys(table.modifiedColumns)) {
+                const [orgColumn, newColumn] = table.modifiedColumns[columnName];
+
+                // change type
+                if (orgColumn.type !== newColumn.type || orgColumn.length !== newColumn.length) {
+                    let type = newColumn.id ? 'serial' : newColumn.type;
+                    if (newColumn.length > 0) {
+                        type += `(${newColumn.length})`;
+                    }
+                    query.push(`ALTER TABLE`);
+                    query.push(`    "${tableName}"`);
+                    query.push(`ALTER COLUMN "${columnName}" TYPE ${type};`);
+                }
+
+                // not null
+                if (orgColumn.notNull !== newColumn.notNull) {
+                    query.push(`ALTER TABLE`);
+                    query.push(`    "${tableName}"`);
+                    query.push(`ALTER COLUMN "${columnName}" ${(newColumn.notNull ? 'SET NOT NULL' : 'DROP NOT NULL')};`);
+                }
+
+                if (orgColumn.default !== newColumn.default) {
+                    query.push(`ALTER TABLE`);
+                    query.push(`    "${tableName}"`);
+                    query.push(`ALTER COLUMN "${columnName}" SET DEFAULT ${newColumn.default};`);
+                }
+
+                if (orgColumn.check !== newColumn.check) {
+                    query.push(`ALTER TABLE`);
+                    query.push(`    "${tableName}"`);
+                    query.push(`ADD CHECK(${newColumn.check});`);
+                }
+            }
+
+            // drop columns
+            for (const columnName of table.deletedColumnName) {
+                query.push(`ALTER TABLE`);
+                query.push(`    "${tableName}"`);
+                query.push(`DROP COLUMN "${columnName}";`);
+            }
+            
+            // create index
+            for (const indexName of Object.keys(table.addedIndexes)){
+                const index = table.addedIndexes[indexName];
+                query.push(`CREATE`);
+                query.push(`    ${(index.unique ? 'UNIQUE ' : '')}INDEX "${indexName}"`);
+                query.push(`ON`);
+                query.push(`    "${tableName}" (${Object.keys(index.columns).map(c => `"${c}"`).join(',')});`);
+            } 
+            
+            // modify index
+            for (const indexName of Object.keys(table.modifiedIndexes)) {
+                const [ , index ] = table.modifiedIndexes[indexName];
+
+                query.push(`DROP INDEX "${indexName}";`);
+
+                query.push(`CREATE`); 
+                query.push(`    ${(index.unique ? 'UNIQUE ' : '')}INDEX "${indexName}"`);
+                query.push(`ON`);
+                query.push(`    "${tableName}" (${Object.keys(index.columns).map(c => `"${c}"`).join(',')});`);
+            }
+            
+            // drop index
+            for (const indexName of table.deletedIndexNames) {
+                query.push(`DROP INDEX "${indexName}";`);
+            }
+
+        }
+        
+        // delete table
+        for (const tableName of diff.deletedTableNames) {
+            query.push(`DROP TABLE "${tableName}" CASCADE;`);
+        }
+        
+
+        console.log(query.join('\n'));
+        
+        /*
         
         // get current tables
         const currentDb = await this.extract();
@@ -507,10 +614,13 @@ export class DbPostgres implements DbInterface {
             `;
             await this.client.query(query);
         }
-
-        await this.client.query('COMMIT');
-
-        if (change === 0) {
+*/
+        if (query.length > 0) {
+            await this.client.query('BEGIN');
+            await this.client.query(query.join('\n'));
+            await this.client.query('COMMIT');
+        
+        } else  {
             console.log('nothing is changed');
         }
 

@@ -22,9 +22,7 @@ describe('postgres', () => {
         await core.execute(Command.create);
     });
     
-   
-
-    it.skip('updte', async () => {
+    it('updte', async () => {
         await core.execute(Command.update);
     });
 
@@ -32,7 +30,7 @@ describe('postgres', () => {
         await core.execute(Command.reCreate);
     });
 
-    it('diff', async () => {
+    it.skip('diff', async () => {
         const diff = await core.execute(Command.diff);
         console.log(diff);
     });

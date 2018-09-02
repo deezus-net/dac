@@ -60,7 +60,7 @@ export const yamlToDb = (src: string) => {
 };
 
 export const equalColumn = (col1: DbColumn, col2: DbColumn) => {
-    
+
     return (col1.type || null) === (col2.type || null) && 
         (col1.length || 0) === (col2.length || 0) && 
         (col1.notNull || false) === (col2.notNull || false) && 
@@ -72,7 +72,7 @@ export const equalColumn = (col1: DbColumn, col2: DbColumn) => {
 export const equalIndex = (index1: DbIndex, index2: DbIndex) => {
     const col1 = Object.keys(index1.columns).map(c => `${c},${index1.columns[c]}`).toString();
     const col2 = Object.keys(index2.columns).map(c => `${c},${index2.columns[c]}`).toString();
-    
+
     return index1.unique === index2.unique && 
         col1 === col2;
         
@@ -146,7 +146,6 @@ export const checkDbDiff = (orgDb: Db, db: Db) => {
         }
 
     }
-console.log(result);
     return result;
 };
 
