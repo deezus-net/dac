@@ -4,7 +4,9 @@ import {DbColumn} from '../interfaces/dbColumn';
 import {DbHost} from '../interfaces/dbHost';
 import {DbInterface} from '../interfaces/dbInterface';
 import {DbTable} from '../interfaces/dbTable';
-import {checkDbDiff, equalColumn, equalIndex} from './utility';
+import {checkDbDiff, dbToYaml, distinct, equalColumn, equalIndex, trimDbProperties} from './utility';
+import {Runtime} from 'inspector';
+import AwaitPromiseReturnType = module
 
 export class DbMysql implements DbInterface {
 
@@ -66,7 +68,7 @@ export class DbMysql implements DbInterface {
      *
      * @returns {Promise<{tables: {[p: string]: DbTable}}>}
      */
-    public async extract() {
+    public async extract(checkDiff: boolean = true) {
         const tables: { [key: string]: DbTable } = {};
 
         const data = await this.connection.query('show tables');
@@ -76,43 +78,33 @@ export class DbMysql implements DbInterface {
                 indexes: {}
             };
         }
-        console.log(tables);
+
         for (const tableName of Object.keys(tables)) {
             // get column list
             for (const row of await this.connection.query(`DESCRIBE ${tableName}`)) {
                 let type = row['Type'];
-                const length = parseInt((type.match(/\(([0-9]+)\)/) || [])[1] || 0, 10);
+                let length = parseInt((type.match(/\(([0-9]+)\)/) || [])[1] || 0, 10);
                 type = type.replace(/\([0-9]+\)/, '');
+                
+                if (type === 'int') {
+                    length = 0;
+                }
 
                 const column: DbColumn = {
                     type: type,
                     length: length,
                     pk: row['Key'] === 'PRI',
-                    notNull: row['Null'] === 'NO'
+                    notNull: row['Null'] === 'NO',
+                    id: row['Extra'] === 'auto_increment'
                 };
                 if (row['Default']) {
                     column.default = row['Default'];
                 }
-
                 tables[tableName].columns[row['Field']] = column;
             }
 
-            // get index list
-            for (const row of await this.connection.query(`SHOW INDEX FROM ${tableName} WHERE Key_name != 'PRIMARY'`)) {
-
-                const indexName = row['Key_name'];
-                const nonUnique = parseInt(row['Non_unique'], 10);
-                const collation = row['Collation'];
-                if (!tables[tableName].indexes[indexName]) {
-                    tables[tableName].indexes[indexName] = {
-                        unique: nonUnique === 0,
-                        columns: {}
-                    };
-                }
-                tables[tableName].indexes[indexName].columns[row['Column_name']] = collation === 'A' ? 'ASC' : 'DESC';
-            }
-
             // get foregin key
+            const fkNames = [];
             const query = `
                     SELECT
                         col.TABLE_NAME AS table_name,
@@ -142,11 +134,9 @@ export class DbMysql implements DbInterface {
                         t.TABLE_NAME = ? 
                     AND
                         t.CONSTRAINT_TYPE = 'FOREIGN KEY'`;
-            console.log(this.dbHost.database, tableName);
             for (const row of await this.connection.query(query, [this.dbHost.database, tableName])) {
 
                 const columnName = row['column_name'];
-                console.log(columnName);
                 if (!tables[tableName].columns[columnName].fk) {
                     tables[tableName].columns[columnName].fk = {};
                 }
@@ -158,13 +148,14 @@ export class DbMysql implements DbInterface {
                 let updateRule = row['UPDATE_RULE'];
                 let deleteRule = row['DELETE_RULE'];
 
-                if (updateRule === 'NO ACTION') {
+                if (updateRule === 'NO ACTION' || updateRule === 'RESTRICT') {
                     updateRule = '';
                 }
-                if (deleteRule === 'NO ACTION') {
+                if (deleteRule === 'NO ACTION' || deleteRule === 'RESTRICT') {
                     deleteRule = '';
                 }
 
+                fkNames.push(row['constraint_name']);
                 tables[tableName].columns[columnName].fk[row['constraint_name']] = {
                     table: row['foreign_table_name'],
                     column: row['foreign_column_name'],
@@ -172,8 +163,29 @@ export class DbMysql implements DbInterface {
                     delete: deleteRule
                 };
             }
+
+            // get index list
+            for (const row of await this.connection.query(`SHOW INDEX FROM ${tableName} WHERE Key_name != 'PRIMARY'`)) {
+
+                const indexName = row['Key_name'];
+                if (fkNames.indexOf(indexName) !== -1 && checkDiff) {
+                    // ignore when same name foreign key exists
+                    continue;
+                } 
+                const nonUnique = parseInt(row['Non_unique'], 10);
+                const collation = row['Collation'];
+                if (!tables[tableName].indexes[indexName]) {
+                    tables[tableName].indexes[indexName] = {
+                        unique: nonUnique === 0,
+                        columns: {}
+                    };
+                }
+                tables[tableName].indexes[indexName].columns[row['Column_name']] = collation === 'A' ? 'ASC' : 'DESC';
+            }
         }
-        return {tables: tables};
+        const db = {tables: tables};
+        trimDbProperties(db);
+        return db;
 
     }
 
@@ -194,7 +206,7 @@ export class DbMysql implements DbInterface {
     private createQuery(tables: { [key: string]: DbTable }) {
         const query: string[] = [];
 
-        for (const tableName of  Object.keys(tables)) {
+        for (const tableName of Object.keys(tables)) {
             const table = tables[tableName];
 
             query.push(`CREATE TABLE \`${tableName}\` (`);
@@ -229,11 +241,11 @@ export class DbMysql implements DbInterface {
                     pkQuery.push(`        \`${p}\``);
                 });
                 query.push(pkQuery.join(',\n'));
-                query.push('    )' + (Object.keys(table.indexes).length > 0 ? ',' : ''));
+                query.push('    )' + (Object.keys((table.indexes || {})).length > 0 ? ',' : ''));
             }
 
             const indexQuery: string[] = [];
-            for (const indexName of Object.keys(table.indexes)) {
+            for (const indexName of Object.keys((table.indexes || {}))) {
                 const index = table.indexes[indexName];
                 const indexColumns = [];
                 for (const c of Object.keys(index.columns)) {
@@ -261,7 +273,7 @@ export class DbMysql implements DbInterface {
 
                 for (const fkName of Object.keys(column.fk)) {
                     const fk = column.fk[fkName];
-                    query.push(DbMysql.createAlterForeignKey(tableName, columnName, fkName, fk.update, fk.delete, tables));
+                    query.push(DbMysql.createAlterForeignKey(fkName, tableName, columnName, fk.table, fk.column, fk.update, fk.delete, tables));
                 }
             }
         }
@@ -310,6 +322,147 @@ export class DbMysql implements DbInterface {
      * @returns {Promise<void>}
      */
     public async update(db: Db) {
+        const diff = await this.diff(db);
+        const orgDb = await this.extract(false);
+        const query = [];
+        const createFkQuery = [];
+        const dropFkQuery = [];
+        // fk
+
+
+        // add tables
+        if (Object.keys(diff.addedTables).length > 0) {
+            query.push(this.createQuery(diff.addedTables));
+        }
+        
+        for (const tableName of Object.keys(diff.modifiedTables)) {
+            const table = diff.modifiedTables[tableName];
+
+            // add columns
+            for (const columnName of Object.keys(table.addedColumns)) {
+                const column = table.addedColumns[columnName];
+
+                const notNull = column.notNull ? ' NOT NULL ' : ' NULL ';
+                const def = column.default ? ` DEFAULT ${column.default} ` : '';
+                const type = (column.id ? 'int' : column.type) + (column.length > 0 ? `(${column.length})` : '');
+
+                query.push(`ALTER TABLE`);
+                query.push(`    \`${tableName}\``);
+                query.push(`ADD COLUMN \`${columnName}\` ${type}${ (column.id ? ' AUTO_INCREMENT' : '')}${notNull}${def};`);
+            }
+
+            // modify columns
+            for (const columnName of Object.keys(table.modifiedColumns)) {
+                const [orgColumn, newColumn] = table.modifiedColumns[columnName];
+                
+                const notNull = newColumn.notNull ? ' NOT NULL ' : ' NULL ';
+                const def = newColumn.default ? ` DEFAULT ${newColumn.default} ` : '';
+                const type = (newColumn.id ? 'int' : newColumn.type) + (newColumn.length > 0 ? `(${newColumn.length})` : '');
+
+                query.push(`ALTER TABLE`);
+                query.push(`    \`${tableName}\``);
+                query.push(`MODIFY \`${columnName}\` ${type}${(newColumn.id ? ' AUTO_INCREMENT' : '')}${notNull}${def};`);
+
+                // foreign key
+                const orgFkName = Object.keys(orgColumn.fk || {});
+                const newFkName = Object.keys(newColumn.fk || {});
+
+                for (const fkName of distinct(orgFkName, newFkName)) {
+                    if (orgFkName.indexOf(fkName) === -1) {
+                        const fk = newColumn.fk[fkName];
+                        createFkQuery.push(DbMysql.createAlterForeignKey(fkName, tableName, columnName, fk.table, fk.column, fk.update, fk.delete, orgDb.tables));
+
+                        continue;
+                    }
+
+                    if (newFkName.indexOf(fkName) === -1) {
+
+                        dropFkQuery.push(`ALTER TABLE`);
+                        dropFkQuery.push(`    \`${tableName}\``);
+                        dropFkQuery.push(`DROP FOREIGN KEY \`${fkName}\`;`);
+
+                        continue;
+                    }
+
+                    if ((orgColumn.fk[fkName].update !== newColumn.fk[fkName].update) ||
+                        (orgColumn.fk[fkName].delete !== newColumn.fk[fkName].delete) ||
+                        (orgColumn.fk[fkName].table !== newColumn.fk[fkName].table) ||
+                        (orgColumn.fk[fkName].column !== newColumn.fk[fkName].column)) {
+
+                        dropFkQuery.push(`ALTER TABLE`);
+                        dropFkQuery.push(`    \`${tableName}\``);
+                        dropFkQuery.push(`DROP FOREIGN KEY \`${fkName}\`;`);
+
+                        // drop foreign key index
+                        dropFkQuery.push(`ALTER TABLE`);
+                        dropFkQuery.push(`    \`${tableName}\``);
+                        dropFkQuery.push(`DROP INDEX \`${fkName}\`;`);
+
+                        const fk = newColumn.fk[fkName];
+                        createFkQuery.push(DbMysql.createAlterForeignKey(fkName, tableName, columnName, fk.table, fk.column, fk.update, fk.delete, orgDb.tables));
+                    }
+                }
+            
+            }
+
+            // drop columns
+            for (const columnName of table.deletedColumnName) {
+                query.push(`ALTER TABLE`);
+                query.push(`    \`${tableName}\``);
+                query.push(`DROP COLUMN \`${columnName}\`;`);
+            }
+
+            // create index
+            for (const indexName of Object.keys(table.addedIndexes)) {
+                const index = table.addedIndexes[indexName];
+
+                query.push(`ALTER TABLE`);
+                query.push(`    \`${tableName}\``);
+                query.push(`ADD ${(index.unique ? 'UNIQUE ' : '')}INDEX \`${indexName}\` (${Object.keys(index.columns).map(c => `\`${c}\` ${index.columns[c]}`)});`);
+            }
+            
+            // modify index
+            for (const indexName of Object.keys(table.modifiedIndexes)) {
+                const [, index] = table.modifiedIndexes[indexName];
+
+                query.push(`ALTER TABLE`);
+                query.push(`    \`${tableName}\``);
+                query.push(`DROP INDEX`); 
+                query.push(`    \`${indexName}\`,`);
+                query.push(`ADD ${(index.unique ? 'UNIQUE ' : '')}INDEX \`${indexName}\` (${Object.keys(index.columns).map(c => `\`${c}\` ${index.columns[c]}`)});`);
+            }
+
+            // drop index
+            for (const indexName of table.deletedIndexNames) {
+                query.push(`ALTER TABLE`);
+                query.push(`    \`${tableName}\``);
+                query.push(`DROP INDEX \`${indexName}\`;`);
+            }
+        }
+
+        // drop tables
+        for (const tableName of diff.deletedTableNames) {
+            query.push(`SET FOREIGN_KEY_CHECKS = 0;`);
+            query.push(`DROP TABLE \`${tableName}\`;`);
+            query.push(`SET FOREIGN_KEY_CHECKS = 1;`);
+        }
+
+        const execQuery = query.join('\n') + '\n' + dropFkQuery.join('\n') + '\n' + createFkQuery.join('\n');
+        console.log(execQuery);
+
+        if (query.length > 0 || createFkQuery.length > 0 || dropFkQuery.length > 0) {
+            await this.connection.query('BEGIN;');
+            await this.connection.query(execQuery);
+            await this.connection.query('COMMIT;');
+
+        } else {
+            console.log('nothing is changed');
+        }
+
+
+        return true;
+        
+        /*
         await this.connection.query('BEGIN');
         const currentDb = await this.extract();
 
@@ -455,6 +608,8 @@ export class DbMysql implements DbInterface {
                     }
                 }*/
 
+        
+        /*
             } else {
                 // create
                 const data = {};
@@ -485,16 +640,12 @@ export class DbMysql implements DbInterface {
 
         }
 
-        return true;
+        return true;*/
 
     }
 
 
-    private static createAlterForeignKey(table: string, column: string, fk: string, onupdate: string, ondelete: string, tables: { [key: string]: DbTable }) {
-
-        const foreignTable = fk.split('.')[0];
-        const foreignColumn = fk.split('.')[1];
-
+    private static createAlterForeignKey(name: string, table: string, column: string, targetTable: string, targetColumn: string, onupdate: string, ondelete: string, tables: {[key: string]: DbTable}) {
         if (onupdate) {
             onupdate = ` ON UPDATE ${onupdate} `;
         }
@@ -503,9 +654,8 @@ export class DbMysql implements DbInterface {
             ondelete = ` ON DELETE ${ondelete} `;
         }
 
-        let query = "";
 
-        // check index
+      /*  // check index
         let hasIndex = false;
         //const hasIndex = tables[foreignTable].indexes.Any(i => i.Value.Columns.All(c => c.Key == foreignColumn));
         if (!hasIndex) {
@@ -515,11 +665,26 @@ export class DbMysql implements DbInterface {
         if (!hasIndex) {
             query += `ALTER TABLE \`${table}\` ADD INDEX \`fk_${table}_${column}_index\` (\`${column}\` ASC);\n`;
         }
+*/
 
+        return `
+            ALTER TABLE
+                \`${targetTable}\`
+            ADD INDEX
+                \`${name}\`
+            (
+                \`${targetColumn}\`
+            );
+            ALTER TABLE 
+                \`${table}\` 
+            ADD CONSTRAINT 
+                \`${name}\` 
+            FOREIGN KEY 
+            (
+                \`${column}\`
+            ) 
+            REFERENCES 
+                \`${targetTable}\`(\`${targetColumn}\`)${onupdate || ''}${ondelete || ''};\n`;
 
-        query += `ALTER TABLE \`${table}\` ADD FOREIGN KEY (\`${column}\`) REFERENCES \`${foreignTable}\`(\`${foreignColumn}\`)${onupdate}${ondelete};\n`;
-
-        return query;
-        // return '';
     }
 }

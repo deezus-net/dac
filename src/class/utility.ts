@@ -215,6 +215,7 @@ export const trimDbProperties = (db: Db) => {
                 delete column.type;
                 delete column.notNull;
                 delete column.pk;
+                delete column.length;
             } else {
                 delete column.id;
             }
