@@ -1,14 +1,14 @@
 {
-  "name": "sukima",
+  "name": "dac",
   "version": "1.0.0",
   "main": "index.js",
-  "repository": "https://github.com/deezus-net/sukima.git",
+  "repository": "https://github.com/deezus-net/dac.git",
   "author": "deezus-net <info@deezus.net>",
   "license": "MIT",
   "scripts": {
     "watch": "tsc --watch",
     "build": "tsc",
-    "test": "jest"
+    "test": "jest core"
   },
   "bin": {
     "dac": "index.js"
