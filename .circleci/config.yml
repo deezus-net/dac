@@ -8,8 +8,8 @@ jobs:
       - restore_cache:
           key: node_modules-{{ checksum "package.json" }}
       - run:
-          name: yarn
-          command: yarn
+          name: npm install
+          command: npm install
      # - run:
      #     name: test
      #     command: npm run test
