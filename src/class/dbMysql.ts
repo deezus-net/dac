@@ -4,9 +4,8 @@ import {DbColumn} from '../interfaces/dbColumn';
 import {DbHost} from '../interfaces/dbHost';
 import {DbInterface} from '../interfaces/dbInterface';
 import {DbTable} from '../interfaces/dbTable';
-import {checkDbDiff, dbToYaml, distinct, equalColumn, equalIndex, trimDbProperties} from './utility';
-import {Runtime} from 'inspector';
-import AwaitPromiseReturnType = module
+import {checkDbDiff, distinct, trimDbProperties} from './utility';
+
 
 export class DbMysql implements DbInterface {
 
@@ -273,7 +272,7 @@ export class DbMysql implements DbInterface {
 
                 for (const fkName of Object.keys(column.fk)) {
                     const fk = column.fk[fkName];
-                    query.push(DbMysql.createAlterForeignKey(fkName, tableName, columnName, fk.table, fk.column, fk.update, fk.delete, tables));
+                    query.push(DbMysql.createAlterForeignKey(fkName, tableName, columnName, fk.table, fk.column, fk.update, fk.delete));
                 }
             }
         }
@@ -291,12 +290,10 @@ export class DbMysql implements DbInterface {
     public async reCreate(db: Db) {
 
         await this.connection.query('BEGIN');
-        // const trn = await this.connection.beginTransaction();
-        // console.log(trn);
         const tables = [];
         const data = await this.connection.query('show tables');
         for (const row of data) {
-            tables.push(data[0][Object.keys(row)[0]]);
+            tables.push(row[Object.keys(row)[0]]);
         }
 
         let query;
@@ -349,6 +346,11 @@ export class DbMysql implements DbInterface {
                 query.push(`ALTER TABLE`);
                 query.push(`    \`${tableName}\``);
                 query.push(`ADD COLUMN \`${columnName}\` ${type}${ (column.id ? ' AUTO_INCREMENT' : '')}${notNull}${def};`);
+
+                for (const fkName of Object.keys(column.fk)) {
+                    const fk = column.fk[fkName];
+                    createFkQuery.push(DbMysql.createAlterForeignKey(fkName, tableName, columnName, fk.table, fk.column, fk.update, fk.delete));
+                }
             }
 
             // modify columns
@@ -370,7 +372,7 @@ export class DbMysql implements DbInterface {
                 for (const fkName of distinct(orgFkName, newFkName)) {
                     if (orgFkName.indexOf(fkName) === -1) {
                         const fk = newColumn.fk[fkName];
-                        createFkQuery.push(DbMysql.createAlterForeignKey(fkName, tableName, columnName, fk.table, fk.column, fk.update, fk.delete, orgDb.tables));
+                        createFkQuery.push(DbMysql.createAlterForeignKey(fkName, tableName, columnName, fk.table, fk.column, fk.update, fk.delete));
 
                         continue;
                     }
@@ -381,6 +383,10 @@ export class DbMysql implements DbInterface {
                         dropFkQuery.push(`    \`${tableName}\``);
                         dropFkQuery.push(`DROP FOREIGN KEY \`${fkName}\`;`);
 
+                        // drop foreign key index
+                        dropFkQuery.push(`ALTER TABLE`);
+                        dropFkQuery.push(`    \`${tableName}\``);
+                        dropFkQuery.push(`DROP INDEX \`${fkName}\`;`);
                         continue;
                     }
 
@@ -645,7 +651,14 @@ export class DbMysql implements DbInterface {
     }
 
 
-    private static createAlterForeignKey(name: string, table: string, column: string, targetTable: string, targetColumn: string, onupdate: string, ondelete: string, tables: {[key: string]: DbTable}) {
+    private static createAlterForeignKey(
+        name: string, 
+        table: string, 
+        column: string, 
+        targetTable: string, 
+        targetColumn: string, 
+        onupdate: string, 
+        ondelete: string) {
         if (onupdate) {
             onupdate = ` ON UPDATE ${onupdate} `;
         }
@@ -668,13 +681,6 @@ export class DbMysql implements DbInterface {
 */
 
         return `
-            ALTER TABLE
-                \`${targetTable}\`
-            ADD INDEX
-                \`${name}\`
-            (
-                \`${targetColumn}\`
-            );
             ALTER TABLE 
                 \`${table}\` 
             ADD CONSTRAINT 
