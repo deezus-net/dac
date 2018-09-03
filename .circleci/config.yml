@@ -6,15 +6,15 @@ jobs:
     steps:
       - checkout
       - restore_cache:
-           key: node_modules
+          key: node_modules
       - run:
-        name: npm install
-        command: npm install
+          name: npm install
+          command: npm install
       - run:
-        name: build
-        command: node run build  
+          name: build
+          command: node run build  
       - save_cache:
-        key: node_modules
-        paths:
-          - node_modules
+          key: node_modules
+          paths:
+            - node_modules
       
