@@ -106,7 +106,9 @@ export const checkDbDiff = (orgDb: Db, db: Db) => {
     const result: DbDiff = {
         addedTables: {},
         deletedTableNames: [],
-        modifiedTables: {}
+        modifiedTables: {},
+        currentDb: orgDb,
+        newDb: db
     };
     
     // tables

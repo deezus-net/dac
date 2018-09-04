@@ -2,10 +2,10 @@ import {Connection, Request, TYPES} from 'tedious';
 import {Db} from '../interfaces/db';
 import {DbColumn} from '../interfaces/dbColumn';
 import {DbHost} from '../interfaces/dbHost';
+import {DbIndex} from '../interfaces/dbIndex';
 import {DbInterface} from '../interfaces/dbInterface';
 import {DbTable} from '../interfaces/dbTable';
-import {checkDbDiff, equalColumn, equalIndex, trimDbProperties} from './utility';
-import {DbIndex} from '../interfaces/dbIndex';
+import {checkDbDiff, distinct, trimDbProperties} from './utility';
 
 export class DbMssql implements DbInterface {
 
@@ -16,7 +16,7 @@ export class DbMssql implements DbInterface {
     }
 
     /**
-     * 
+     *
      * @returns {Promise<void>}
      */
     public async connect() {
@@ -44,7 +44,7 @@ export class DbMssql implements DbInterface {
     }
 
     /**
-     * 
+     *
      * @returns {Promise<void>}
      */
     public async close() {
@@ -55,16 +55,16 @@ export class DbMssql implements DbInterface {
     }
 
     /**
-     * 
+     *
      * @param {Db} db
      * @returns {string}
      */
     public query(db: Db) {
         return this.createQuery(db.tables);
     }
-    
+
     /**
-     * 
+     *
      * @param {Db} db
      * @returns {Promise<boolean>}
      */
@@ -78,7 +78,7 @@ export class DbMssql implements DbInterface {
     }
 
     /**
-     * 
+     *
      * @param {Db} db
      * @returns {Promise<boolean>}
      */
@@ -108,7 +108,7 @@ export class DbMssql implements DbInterface {
                 foreignKeys[row['fk_name']] = row['table_name'];
             }
         }
-        
+
         // drop exist foreign keys
         for (const fkName of Object.keys(foreignKeys)) {
             query = `
@@ -116,7 +116,7 @@ export class DbMssql implements DbInterface {
             `;
             await this.exec(query);
         }
-        
+
         // drop exist tables
         for (const tableName of tables) {
             query = `DROP TABLE [${tableName}]`;
@@ -127,9 +127,9 @@ export class DbMssql implements DbInterface {
 
         return true;
     }
-    
+
     /**
-     * 
+     *
      * @param {string} query
      * @param parameters
      * @returns {Promise<any>}
@@ -137,18 +137,18 @@ export class DbMssql implements DbInterface {
     public async exec(query: string, parameters: any = null) {
         const res = await new Promise<any[]>(resolve => {
             const request = new Request(query, err => {
-                if (err){
+                if (err) {
                     console.log(err);
-                } 
+                }
                 resolve(rows);
             });
-            
+
             if (parameters !== null) {
                 for (const name of Object.keys(parameters)) {
                     request.addParameter(name, TYPES.NVarChar, parameters[name]);
                 }
             }
-            
+
             const rows = [];
             request.on('row', columns => {
                 const row = {};
@@ -164,7 +164,7 @@ export class DbMssql implements DbInterface {
     }
 
     /**
-     * 
+     *
      * @returns {Promise<{tables: {[p: string]: DbTable}}>}
      */
     public async extract() {
@@ -214,7 +214,7 @@ export class DbMssql implements DbInterface {
 
             if (row['is_primary_key']) {
                 pk[tableName].push(row['column_name']);
-                
+
             } else {
                 const indexName = row['index_name'];
                 if (!indexes[tableName][indexName]) {
@@ -312,7 +312,7 @@ export class DbMssql implements DbInterface {
                     tables[tableName].columns[columnName].check = definition;
                 }
             }
-            
+
             // get default list
             query = `
                 SELECT
@@ -338,12 +338,12 @@ export class DbMssql implements DbInterface {
 
                 const columnName = row['column_name'];
                 const definition = (row['definition'].match(/\((.*)\)/) || [])[1] || row['definition'];
-                
+
                 if (tables[tableName].columns[columnName]) {
                     tables[tableName].columns[columnName].default = definition;
                 }
             }
-            
+
             // get foreign key list
             query = `
                 SELECT
@@ -384,7 +384,7 @@ export class DbMssql implements DbInterface {
                     t1.name = @table
             `;
             for (const row of await this.exec(query, {table: tableName})) {
-                
+
                 if (tables[tableName].columns[row['column_name']]) {
                     if (!tables[tableName].columns[row['column_name']].fk) {
                         tables[tableName].columns[row['column_name']].fk = {};
@@ -407,7 +407,7 @@ export class DbMssql implements DbInterface {
     }
 
     /**
-     * 
+     *
      * @param {Db} db
      * @returns {Promise<void>}
      */
@@ -417,183 +417,165 @@ export class DbMssql implements DbInterface {
     }
 
     /**
-     * 
+     *
      * @param {Db} db
      * @returns {Promise<boolean>}
      */
     public async update(db: Db) {
-        await this.beginTransaction();
+        const diff = await this.diff(db);
+        const query = [];
+        const createFkQuery = [];
+        const dropFkQuery = [];
 
 
-        // get current tables
-        const currentDb = await this.extract();
+        // add tables
+        if (Object.keys(diff.addedTables).length > 0) {
+            query.push(this.createQuery(diff.addedTables));
+        }
 
+        for (const tableName of Object.keys(diff.modifiedTables)) {
+            const table = diff.modifiedTables[tableName];
+            const orgTable = diff.currentDb.tables[tableName];
 
-        // dropped index for altering column
-        const droppedIndexes: Array<{ [key: string]: string }> = [];
+            // add columns
+            for (const columnName of Object.keys(table.addedColumns)) {
+                const column = table.addedColumns[columnName];
+                let type = column.id ? 'int' : column.type;
+                if (column.length > 0) {
+                    type += `(${column.length})`;
+                }
+                query.push(`ALTER TABLE`);
+                query.push(`    [${tableName}]`);
+                query.push(`ADD`);
+                query.push(`    [${columnName}] ${type}${(column.id ? ' IDENTITY' : '')}${column.notNull ? ' NOT NULL' : ''};`);
 
-        let change = 0;
-        let query;
-        for (const tableName of Object.keys(db.tables)) {
-            const orgTable = currentDb.tables[tableName];
-            const table = db.tables[tableName];
-            if (orgTable) {
-                // alter
-                for (const columnName of Object.keys(table.columns)) {
-                    const orgColumn = orgTable.columns[columnName];
-                    const column = table.columns[columnName];
-                    const type = column.type + (column.length > 0 ? `(${column.length})` : '');
-                    if (!orgColumn) {
-                        // add column
-                        query = `
-                            ALTER TABLE 
-                                [${tableName}] 
-                            ADD 
-                                [${columnName}] ${type}${(column.id ? ' IDENTITY' : '')}${column.notNull ? ' NOT NULL' : ''}
-                            `;
-                        console.log(query);
-                        await this.exec(query);
-                        change++;
+                for (const fkName of Object.keys(column.fk || {})) {
+                    const fk = column.fk[fkName];
+                    createFkQuery.push(DbMssql.createAlterForeignKey(fkName, tableName, columnName, fk.table, fk.column, fk.update, fk.delete));
+                }
+            }
 
-                    } else if (!equalColumn(column, orgColumn)) {
-                        // if change execute alter
-                        for (const indexName of Object.keys(orgTable.indexes).filter(i => orgTable.indexes[i].columns[columnName])) {
-                            query = `
-                                DROP INDEX 
-                                    [${indexName}] ON [${tableName}]`;
-                            await this.exec(query);
+            // modify columns
+            for (const columnName of Object.keys(table.modifiedColumns)) {
+                const [orgColumn, newColumn] = table.modifiedColumns[columnName];
 
-                            const droppedIndex = {};
-                            droppedIndex[tableName] = indexName;
-                            droppedIndexes.push(droppedIndex);
+                // if change execute alter
+                for (const indexName of Object.keys(orgTable.indexes || {}).filter(i => orgTable.indexes[i].columns[columnName])) {
+                    query.push(`DROP INDEX`);
+                    query.push(`    [${indexName}] ON [${tableName}];`);
 
-                        }
-                        query = `
-                            ALTER TABLE 
-                                [${tableName}] 
-                            ALTER COLUMN  
-                                [${columnName}] ${type}${column.id ? ' IDENTITY' : ''}${column.notNull ? ' NOT NULL' : ''}
-                            `;
-                        await this.exec(query);
+                    const droppedIndex = {};
+                    droppedIndex[tableName] = indexName;
+                    droppedIndexes.push(droppedIndex);
 
-                        change++;
-                    }
                 }
 
-                for (const delCol of Object.keys(orgTable.columns).filter(oc => Object.keys(table.columns).indexOf(oc) === -1)) {
-                    query = `
-                        ALTER TABLE 
-                            [${tableName}] 
-                        DROP COLUMN [${delCol}]`;
-                    await this.exec(query);
-
-                    change++;
+                let type = newColumn.id ? 'int' : newColumn.type;
+                if (newColumn.length > 0) {
+                    type += `(${newColumn.length})`;
                 }
 
+                query.push(`ALTER TABLE`);
+                query.push(`    [${tableName}]`);
+                query.push(`ALTER COLUMN`);
+                query.push(`    [${columnName}] ${type}${newColumn.id ? ' IDENTITY' : ''}${newColumn.notNull ? ' NOT NULL' : ''};`);
 
-                for (const indexName of Object.keys(table.indexes)) {
-                    const orgIndex = orgTable.indexes[indexName];
-                    const index = table.indexes[indexName];
+                // foreign key
+                const orgFkName = Object.keys(orgColumn.fk || {});
+                const newFkName = Object.keys(newColumn.fk || {});
 
-                    if (!orgIndex /*|| droppedIndexes.Any(i => i.Key == table.Key && i.Value == index.Key*/) {
-                        // add index
-                        query = `
-                            CREATE 
-                                ${index.unique ? 'UNIQUE ' : ''}INDEX [${indexName}] 
-                            ON 
-                                [dbo].[${tableName}](${Object.keys(index.columns).map(c => `[${c}] ${index.columns[c]}`).join(',')})`;
-                        await this.exec(query);
-                        change++;
-
-                    } else if (!equalIndex(index, orgIndex)) {
-                        // if change execute drop and create
-                        query = `
-                            DROP INDEX 
-                                [${tableName}].[${indexName}]`;
-                        await this.exec(query);
-                        change++;
-                        query = `
-                            CREATE 
-                                ${index.unique ? 'UNIQUE ' : ''}INDEX [${indexName}] 
-                            ON 
-                                [dbo].[${tableName}](${Object.keys(index.columns).map(c => `[${c}] ${index.columns[c]}`).join(',')})`;
-                        await this.exec(query);
-                        change++;
-                    }
-                }
-
-                for (const indexName of Object.keys(orgTable.indexes).filter(oi => !table.indexes[oi])) {
-                    query = `
-                        DROP INDEX 
-                            [${tableName}].[${indexName}]`;
-                    await this.exec(query);
-                    change++;
-                }
-
-
-                // foregin key
-                for (const columnName of Object.keys(table.columns).filter(c => table.columns[c].fk)) {
-                    const column = table.columns[columnName];
-                    for (const f of Object.keys(column.fk)) {
-                        const orgForeignKey = orgTable.columns[columnName] && orgTable.columns[columnName].fk[f] ? orgTable.columns[columnName].fk[f] : null;
-                        const foreginKey = column.fk[f];
-                        if (orgForeignKey) {
-                            if (foreginKey.update !== orgForeignKey.update || foreginKey.delete !== orgForeignKey.delete) {
-                                // drop
-                                query = `
-                                    ALTER TABLE 
-                                        [dbo].[${tableName}]
-                                    DROP CONSTRAINT [${f}];
-                                `;
-                                await this.exec(query);
-                                change++;
-                            
-                            } else {
-                                continue;
-                            }
-
-                        }
-                        query = DbMssql.createAlterForeignKey(tableName, columnName, f, foreginKey.update, foreginKey.delete);
-                        await this.exec(query);
-                        change++;
-                    }
-                }
-
-                // drop foreign key
-                const fks = Object.keys(table.columns).filter(c => table.columns[c].fk).map(c => Object.keys(table.columns[c].fk)[0]);
-                for (const colName of Object.keys(orgTable.columns)) {
-                    if (!orgTable.columns[colName].fk) {
+                for (const fkName of distinct(orgFkName, newFkName)) {
+                    if (orgFkName.indexOf(fkName) === -1) {
+                        const fk = newColumn.fk[fkName];
+                        createFkQuery.push(DbMssql.createAlterForeignKey(fkName, tableName, columnName, fk.table, fk.column, fk.update, fk.delete));
                         continue;
                     }
-                    for (const fk of Object.keys(orgTable.columns[colName].fk).filter(f => fks.indexOf(f) === -1)) {
-                        query = `
-                            ALTER TABLE 
-                                [dbo].[${tableName}] 
-                            DROP CONSTRAINT [${fk}];
-                        `;
-                        await this.exec(query);
-                        change++;
+
+                    if (newFkName.indexOf(fkName) === -1) {
+
+                        dropFkQuery.push(`ALTER TABLE`);
+                        dropFkQuery.push(`    [dbo].[${tableName}]`);
+                        dropFkQuery.push(`DROP CONSTRAINT [${fkName}];`);
+                        continue;
+                    }
+
+                    if ((orgColumn.fk[fkName].update !== newColumn.fk[fkName].update) ||
+                        (orgColumn.fk[fkName].delete !== newColumn.fk[fkName].delete) ||
+                        (orgColumn.fk[fkName].table !== newColumn.fk[fkName].table) ||
+                        (orgColumn.fk[fkName].column !== newColumn.fk[fkName].column)) {
+
+                        dropFkQuery.push(`ALTER TABLE`);
+                        dropFkQuery.push(`    [dbo].[${tableName}]`);
+                        dropFkQuery.push(`DROP CONSTRAINT [${fkName}];`);
+
+                        const fk = newColumn.fk[fkName];
+                        createFkQuery.push(DbMssql.createAlterForeignKey(fkName, tableName, columnName, fk.table, fk.column, fk.update, fk.delete));
                     }
                 }
-                
-            } else {
-                // create
-                const data = {};
-                data[tableName] = table;
-                query = this.createQuery(data);
-                await this.exec(query);
+
             }
+
+            // drop columns
+            for (const columnName of table.deletedColumnName) {
+                query.push(`ALTER TABLE`);
+                query.push(`    [${tableName}]`);
+                query.push(`DROP COLUMN [${columnName}];`);
+
+            }
+
+            // create index
+            for (const indexName of Object.keys(table.addedIndexes)) {
+                const index = table.addedIndexes[indexName];
+
+                query.push(`CREATE`);
+                query.push(`    ${index.unique ? 'UNIQUE ' : ''}INDEX [${indexName}]`);
+                query.push(`ON`);
+                query.push(`    [dbo].[${tableName}](${Object.keys(index.columns).map(c => `[${c}] ${index.columns[c]}`).join(',')});`);
+            }
+
+            // modify index
+            for (const indexName of Object.keys(table.modifiedIndexes)) {
+                const [, index] = table.modifiedIndexes[indexName];
+
+                query.push(`DROP INDEX`);
+                query.push(`    [${tableName}].[${indexName}];`);
+                query.push(`CREATE`);
+                query.push(`    ${index.unique ? 'UNIQUE ' : ''}INDEX [${indexName}]`);
+                query.push(`ON`);
+                query.push(`    [dbo].[${tableName}](${Object.keys(index.columns).map(c => `[${c}] ${index.columns[c]}`).join(',')});`);
+            }
+
+            // drop index
+            for (const indexName of table.deletedIndexNames) {
+                query.push(`DROP INDEX`);
+                query.push(`    [${tableName}].[${indexName}];`);
+            }
+
         }
-        await this.commit();
-        if (change === 0) {
+
+        // drop tables
+        for (const tableName of diff.deletedTableNames) {
+            query.push(`DROP TABLE [dbo].[${tableName}];`);
+        }
+
+        const execQuery = dropFkQuery.join('\n') + '\n' + query.join('\n') + '\n' + createFkQuery.join('\n');
+        console.log(execQuery);
+
+        if (query.length > 0 || createFkQuery.length > 0 || dropFkQuery.length > 0) {
+            await this.beginTransaction();
+            await this.exec(execQuery);
+            await this.commit();
+
+        } else {
             console.log('nothing is changed');
         }
         return true;
+
     }
-    
+
 
     /**
-     * 
+     *
      * @returns {Promise}
      */
     private async beginTransaction() {
@@ -605,7 +587,7 @@ export class DbMssql implements DbInterface {
     }
 
     /**
-     * 
+     *
      * @returns {Promise}
      */
     private async commit() {
@@ -644,7 +626,7 @@ export class DbMssql implements DbInterface {
                 const check = column.check ? ` CHECK(${column.check}) ` : '';
                 const def = column.default ? ` DEFAULT ${column.default} ` : '';
                 const type = column.type + (column.length > 0 ? `(${column.length})` : '');
-                
+
                 columnQuery.push(`    [${columnName}] ${type}${identity}${notNull}${def}${check}`);
                 if (column.pk || column.id) {
                     pk.push(columnName);
@@ -670,14 +652,12 @@ export class DbMssql implements DbInterface {
                 if (column.fk) {
                     for (const fkName of Object.keys(column.fk)) {
                         const foreignKey = column.fk[fkName];
-                        fkQuery.push(DbMssql.createAlterForeignKey(tableName, columnName, fkName, foreignKey.update, foreignKey.delete));
+                        fkQuery.push(DbMssql.createAlterForeignKey(fkName, tableName, columnName, foreignKey.table, foreignKey.column, foreignKey.update, foreignKey.delete));
                     }
                 }
             }
 
-
             query.push(');');
-
 
             let num = 1;
             for (const indexName of Object.keys(table.indexes)) {
@@ -692,19 +672,20 @@ export class DbMssql implements DbInterface {
 
         return query.join('\n') + '\n' + fkQuery.join('\n');
     }
-    
+
     /**
-     * 
+     *
+     * @param {string} name
      * @param {string} table
      * @param {string} column
-     * @param {string} fk
+     * @param {string} targetTable
+     * @param {string} targetColumn
      * @param {string} onupdate
      * @param {string} ondelete
      * @returns {string}
      */
-    private static createAlterForeignKey(table: string, column: string, fk: string, onupdate: string, ondelete: string) {
-        const foreginTable = fk.split('.')[0];
-        const foreginColumn = fk.split('.')[1];
+    private static createAlterForeignKey(name: string, table: string, column: string, targetTable: string, targetColumn: string, onupdate: string, ondelete: string) {
+
 
         if (onupdate) {
             onupdate = ` ON UPDATE ${onupdate} `;
@@ -714,7 +695,19 @@ export class DbMssql implements DbInterface {
             ondelete = ` ON DELETE ${ondelete} `;
         }
 
-        return `ALTER TABLE [dbo].[${table}] ADD CONSTRAINT [FK_${table}_${column}_${foreginTable}_${foreginColumn}] FOREIGN KEY ([${column}]) REFERENCES [dbo].[${foreginTable}]([${foreginColumn}])${onupdate}${ondelete};`;
+        const query = [];
+
+        query.push(`ALTER TABLE`);
+        query.push(`    [dbo].[${table}]`);
+        query.push(`ADD CONSTRAINT`);
+        query.push(`    [${name}]`);
+        query.push(`FOREIGN KEY`);
+        query.push(`(`);
+        query.push(`    [${column}]`);
+        query.push(`)`);
+        query.push(`REFERENCES [dbo].[${targetTable}]([${targetColumn}])${onupdate || ''}${ondelete || ''};`);
+
+        return query.join('\n');
     }
 
 }

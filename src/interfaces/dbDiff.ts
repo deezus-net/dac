@@ -1,3 +1,4 @@
+import {Db} from './db';
 import {DbColumn} from './dbColumn';
 import {DbIndex} from './dbIndex';
 import {DbTable} from './dbTable';
@@ -14,4 +15,6 @@ export interface DbDiff {
             deletedIndexNames: string[],
         }
     };
+    currentDb: Db;
+    newDb: Db;
 }

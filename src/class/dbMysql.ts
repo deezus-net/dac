@@ -320,7 +320,7 @@ export class DbMysql implements DbInterface {
      */
     public async update(db: Db) {
         const diff = await this.diff(db);
-        const orgDb = await this.extract(false);
+        const orgDb = diff.currentDb;
         const query = [];
         const createFkQuery = [];
         const dropFkQuery = [];
@@ -405,7 +405,7 @@ export class DbMysql implements DbInterface {
                         dropFkQuery.push(`DROP INDEX \`${fkName}\`;`);
 
                         const fk = newColumn.fk[fkName];
-                        createFkQuery.push(DbMysql.createAlterForeignKey(fkName, tableName, columnName, fk.table, fk.column, fk.update, fk.delete, orgDb.tables));
+                        createFkQuery.push(DbMysql.createAlterForeignKey(fkName, tableName, columnName, fk.table, fk.column, fk.update, fk.delete));
                     }
                 }
             
@@ -453,7 +453,7 @@ export class DbMysql implements DbInterface {
             query.push(`SET FOREIGN_KEY_CHECKS = 1;`);
         }
 
-        const execQuery = query.join('\n') + '\n' + dropFkQuery.join('\n') + '\n' + createFkQuery.join('\n');
+        const execQuery = dropFkQuery.join('\n') + '\n' + query.join('\n') + '\n' +  createFkQuery.join('\n');
         console.log(execQuery);
 
         if (query.length > 0 || createFkQuery.length > 0 || dropFkQuery.length > 0) {
