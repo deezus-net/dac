@@ -4,7 +4,8 @@ import {DbColumn} from '../interfaces/dbColumn';
 import {DbHost} from '../interfaces/dbHost';
 import {DbInterface} from '../interfaces/dbInterface';
 import {DbTable} from '../interfaces/dbTable';
-import {checkDbDiff, equalColumn, equalIndex} from './utility';
+import {checkDbDiff, equalColumn, equalIndex, trimDbProperties} from './utility';
+import {DbIndex} from '../interfaces/dbIndex';
 
 export class DbMssql implements DbInterface {
 
@@ -69,6 +70,7 @@ export class DbMssql implements DbInterface {
      */
     public async create(db: Db) {
         const query = this.createQuery(db.tables);
+        console.log(query);
         await this.beginTransaction();
         await this.exec(query);
         await this.commit();
@@ -169,7 +171,7 @@ export class DbMssql implements DbInterface {
         const tables: { [key: string]: DbTable } = {};
 
         const columns: { [key: string]: { [key: string]: DbColumn } } = {};
-        const indexes: { [key: string]: { [key: string]: { [key: string]: DbColumn } } } = {};
+        const indexes: { [key: string]: { [key: string]: DbIndex } } = {};
         const pk: { [key: string]: string[] } = {};
 
         let query = `
@@ -178,7 +180,8 @@ export class DbMssql implements DbInterface {
                     i.name AS index_name,
                     col.name AS column_name,
                     i.is_primary_key,
-                    c.is_descending_key 
+                    c.is_descending_key,
+                    i.is_unique
                 FROM
                     sys.indexes as i 
                 INNER JOIN
@@ -197,7 +200,7 @@ export class DbMssql implements DbInterface {
                     c.object_id = col.object_id
                 AND
                     c.column_id = col.column_id
-                ORDER BY t.name, i.name, col.name
+                ORDER BY t.name, i.name, c.key_ordinal
         `;
         for (const row of await this.exec(query)) {
             const tableName = row['table_name'];
@@ -208,26 +211,27 @@ export class DbMssql implements DbInterface {
             if (!indexes[tableName]) {
                 indexes[tableName] = {};
             }
-            
-            if (row['is_primary_key'] === 'true') {
-                pk[tableName].push(row['column_name']);
 
+            if (row['is_primary_key']) {
+                pk[tableName].push(row['column_name']);
+                
             } else {
                 const indexName = row['index_name'];
                 if (!indexes[tableName][indexName]) {
-                    indexes[tableName][indexName] = {};
+                    indexes[tableName][indexName] = {columns: {}, unique: row['is_unique']};
                 }
-                indexes[tableName][indexName][row['column_name']] = row['is_descending_key'] ? 'DESC' : 'ASC';
+                indexes[tableName][indexName].columns[row['column_name']] = row['is_descending_key'] ? 'desc' : 'asc';
             }
         }
-        
+        console.log(indexes);
         query = `
             SELECT
                 t.name AS table_name,
                 c.name AS column_name,
                 type.name AS type,
                 c.max_length,
-                c.is_nullable 
+                c.is_nullable ,
+                c.is_identity
             FROM
                 sys.tables AS t 
             INNER JOIN
@@ -257,28 +261,24 @@ export class DbMssql implements DbInterface {
                     length /= 2;
                     break;
                 case 'int':
+                case 'datetime':
                     length = 0;
                     break;
             }
 
             columns[tableName][row['column_name']] = {
+                id: row['is_identity'],
                 type: row['type'],
                 length: length,
-                notNull: parseInt(row['is_nullable'], 10) !== 1,
+                notNull: !row['is_nullable'],
                 pk: !!(pk[tableName] && pk[tableName][row['column_name']])
             };
         }
         for (const tableName of Object.keys(columns)) {
             tables[tableName] = {
                 columns: columns[tableName],
-                indexes: {}
+                indexes: indexes[tableName]
             };
-            for (const indexName of Object.keys(indexes[tableName])) {
-                tables[tableName].indexes[indexName] = {columns: {}, unique: false};
-                for (const indexColumn of Object.keys(indexes[tableName][indexName])) {
-                 //   tables[tableName].indexes[indexName].columns[indexColumn] = indexes[tableName][indexName][indexColumn];
-                }
-            }
         }
 
         for (const tableName of Object.keys(tables)) {
@@ -401,7 +401,9 @@ export class DbMssql implements DbInterface {
             }
         }
 
-        return {tables: tables};
+        const db = {tables: tables};
+        trimDbProperties(db);
+        return db;
     }
 
     /**
@@ -634,6 +636,7 @@ export class DbMssql implements DbInterface {
                 const column = table.columns[columnName];
                 if (column.id) {
                     column.notNull = true;
+                    column.type = 'int';
                 }
 
                 const identity = column.id ? ' IDENTITY ' : '';
@@ -641,6 +644,7 @@ export class DbMssql implements DbInterface {
                 const check = column.check ? ` CHECK(${column.check}) ` : '';
                 const def = column.default ? ` DEFAULT ${column.default} ` : '';
                 const type = column.type + (column.length > 0 ? `(${column.length})` : '');
+                
                 columnQuery.push(`    [${columnName}] ${type}${identity}${notNull}${def}${check}`);
                 if (column.pk || column.id) {
                     pk.push(columnName);
