@@ -50,7 +50,7 @@ describe('dbMysql', () => {
     
     it.skip('create', async () => {
         await mysql.connect();
-        const res = await mysql.create(db);
+        const res = await mysql.create(db, false);
         expect(res).toBeTruthy();
         await mysql.close();
 
@@ -58,7 +58,7 @@ describe('dbMysql', () => {
 
     it.skip('reCreate', async () => {
         await mysql.connect();
-        const res = await mysql.reCreate(db);
+        const res = await mysql.reCreate(db, false);
         expect(res).toBeTruthy();
         await mysql.close();
 
@@ -75,7 +75,7 @@ describe('dbMysql', () => {
 
     it.skip ('update', async () => {
         await mysql.connect();
-        const res = await mysql.update(db);
+        const res = await mysql.update(db, false);
         await mysql.close();
     });
 

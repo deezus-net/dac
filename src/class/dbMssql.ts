@@ -66,15 +66,17 @@ export class DbMssql implements DbInterface {
     /**
      *
      * @param {Db} db
+     * @param queryOnly
      * @returns {Promise<boolean>}
      */
-    public async create(db: Db) {
+    public async create(db: Db, queryOnly: boolean) {
         const query = this.createQuery(db.tables);
-        console.log(query);
-        await this.beginTransaction();
-        await this.exec(query);
-        await this.commit();
-        return true;
+        if (!queryOnly) {
+            await this.beginTransaction();
+            await this.exec(query);
+            await this.commit();
+        }
+        return query;
     }
 
     /**
@@ -82,9 +84,10 @@ export class DbMssql implements DbInterface {
      * @param {Db} db
      * @returns {Promise<boolean>}
      */
-    public async reCreate(db: Db) {
+    public async reCreate(db: Db, queryOnly: boolean) {
         const createQuery = this.createQuery(db.tables);
-        await this.beginTransaction();
+        const queries = [];
+        
 
         // get table and foreign key list
         const tables: string[] = [];
@@ -111,21 +114,28 @@ export class DbMssql implements DbInterface {
 
         // drop exist foreign keys
         for (const fkName of Object.keys(foreignKeys)) {
-            query = `
-                    ALTER TABLE [${fkName}] DROP CONSTRAINT [${foreignKeys[fkName]}]
-            `;
-            await this.exec(query);
+            queries.push(`ALTER TABLE`);
+            queries.push(`    [${fkName}]`);
+            queries.push(`DROP CONSTRAINT`);
+            queries.push(`    [${foreignKeys[fkName]}];`)
         }
 
         // drop exist tables
         for (const tableName of tables) {
-            query = `DROP TABLE [${tableName}]`;
-            await this.exec(query);
+            queries.push(`DROP TABLE`);
+            queries.push(`    [${tableName}];`);
         }
-        await this.exec(createQuery);
-        await this.commit();
-
-        return true;
+        
+        queries.push(this.createQuery(db.tables));
+        
+        const execQuery = queries.join('\n');
+        
+        if (!queryOnly) {
+            await this.beginTransaction();
+            await this.exec(execQuery);
+            await this.commit();
+        }
+        return execQuery;
     }
 
     /**
@@ -419,9 +429,10 @@ export class DbMssql implements DbInterface {
     /**
      *
      * @param {Db} db
+     * @param queryOnly
      * @returns {Promise<boolean>}
      */
-    public async update(db: Db) {
+    public async update(db: Db, queryOnly: boolean) {
         const diff = await this.diff(db);
         const query = [];
         const createFkQuery = [];
@@ -463,11 +474,6 @@ export class DbMssql implements DbInterface {
                 for (const indexName of Object.keys(orgTable.indexes || {}).filter(i => orgTable.indexes[i].columns[columnName])) {
                     query.push(`DROP INDEX`);
                     query.push(`    [${indexName}] ON [${tableName}];`);
-
-                    const droppedIndex = {};
-                    droppedIndex[tableName] = indexName;
-                    droppedIndexes.push(droppedIndex);
-
                 }
 
                 let type = newColumn.id ? 'int' : newColumn.type;
@@ -562,14 +568,16 @@ export class DbMssql implements DbInterface {
         console.log(execQuery);
 
         if (query.length > 0 || createFkQuery.length > 0 || dropFkQuery.length > 0) {
-            await this.beginTransaction();
-            await this.exec(execQuery);
-            await this.commit();
+            if (queryOnly) {
+                await this.beginTransaction();
+                await this.exec(execQuery);
+                await this.commit();
+            }
 
         } else {
             console.log('nothing is changed');
         }
-        return true;
+        return execQuery;
 
     }
 

@@ -45,12 +45,15 @@ export class DbMysql implements DbInterface {
     /**
      *
      * @param {Db} db
+     * @param queryOnly
      * @returns {Promise<boolean>}
      */
-    public async create(db: Db) {
+    public async create(db: Db, queryOnly: boolean) {
         const query = this.createQuery(db.tables);
-        await this.connection.query(query);
-        return true;
+        if (!queryOnly) {
+            await this.connection.query(query);
+        }
+        return query;
     }
 
     /**
@@ -287,29 +290,31 @@ export class DbMysql implements DbInterface {
      * @param {Db} db
      * @returns {Promise<boolean>}
      */
-    public async reCreate(db: Db) {
+    public async reCreate(db: Db, queryOnly: boolean) {
 
-        await this.connection.query('BEGIN');
         const tables = [];
         const data = await this.connection.query('show tables');
         for (const row of data) {
             tables.push(row[Object.keys(row)[0]]);
         }
 
-        let query;
+        const query = [];
         if (tables.length > 0) {
-            query = `
-                SET FOREIGN_KEY_CHECKS = 0;
-                DROP TABLE ${tables.map(t => `\`${t}\``).join(',')};
-                SET FOREIGN_KEY_CHECKS = 1;
-            `;
-            await this.connection.query(query);
+            query.push(`SET FOREIGN_KEY_CHECKS = 0`);
+            query.push(`DROP TABLE ${tables.map(t => `\`${t}\``).join(',')};`);
+            query.push(`SET FOREIGN_KEY_CHECKS = 1;`);
         }
 
-        query = this.createQuery(db.tables);
-        await this.connection.query(query);
-        await this.connection.query('COMMIT');
-        return true;
+        query.push(this.createQuery(db.tables));
+        
+        const execQuery = query.join('\n');
+        if (!queryOnly) {
+            await this.connection.query('BEGIN');
+            await this.connection.query(execQuery);
+            await this.connection.query('COMMIT');
+        }
+
+        return execQuery;
 
     }
 
@@ -318,7 +323,7 @@ export class DbMysql implements DbInterface {
      * @param {Db} db
      * @returns {Promise<void>}
      */
-    public async update(db: Db) {
+    public async update(db: Db, queryOnly: boolean) {
         const diff = await this.diff(db);
         const orgDb = diff.currentDb;
         const query = [];
@@ -457,16 +462,18 @@ export class DbMysql implements DbInterface {
         console.log(execQuery);
 
         if (query.length > 0 || createFkQuery.length > 0 || dropFkQuery.length > 0) {
-            await this.connection.query('BEGIN;');
-            await this.connection.query(execQuery);
-            await this.connection.query('COMMIT;');
+            if (!queryOnly) {
+                await this.connection.query('BEGIN;');
+                await this.connection.query(execQuery);
+                await this.connection.query('COMMIT;');
+            }
 
         } else {
             console.log('nothing is changed');
         }
 
 
-        return true;
+        return execQuery;
         
         /*
         await this.connection.query('BEGIN');

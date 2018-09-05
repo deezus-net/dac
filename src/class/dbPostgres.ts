@@ -46,14 +46,17 @@ export class DbPostgres implements DbInterface {
     /**
      *
      * @param {Db} db
+     * @param queryOnly
      * @returns {Promise<boolean>}
      */
-    public async create(db: Db) {
+    public async create(db: Db, queryOnly: boolean) {
         const query = this.createQuery(db.tables);
-        await this.client.query('BEGIN');
-        await this.client.query(query);
-        await this.client.query('COMMIT');
-        return true;
+        if (!queryOnly) {
+            await this.client.query('BEGIN');
+            await this.client.query(query);
+            await this.client.query('COMMIT');
+        }
+        return query;
     }
 
     /**
@@ -297,19 +300,23 @@ export class DbPostgres implements DbInterface {
      * @param {Db} db
      * @returns {Promise<boolean>}
      */
-    public async reCreate(db: Db) {
-        const query = this.createQuery(db.tables);
-        await this.client.query('BEGIN');
-
+    public async reCreate(db: Db, queryOnly: boolean) {
+        const query = [];
         const tables = {};
         const data = await this.client.query('SELECT relname FROM "pg_stat_user_tables"');
         for (const row of data.rows) {
-            await this.client.query(`DROP TABLE "${row['relname']}" CASCADE`);
+            query.push(`DROP TABLE "${row['relname']}" CASCADE`);
         }
-        await this.client.query(query);
-        await this.client.query('COMMIT');
+        query.push(this.createQuery(db.tables));
 
-        return true;
+        const execQuery = query.join('\n');
+        
+        if (!queryOnly) {
+            await this.client.query('BEGIN');
+            await this.client.query(execQuery);
+            await this.client.query('COMMIT');
+        }
+        return execQuery;
     }
 
     /**
@@ -317,7 +324,7 @@ export class DbPostgres implements DbInterface {
      * @param {Db} db
      * @returns {Promise<void>}
      */
-    public async update(db: Db) {
+    public async update(db: Db, queryOnly: boolean) {
         const diff = await this.diff(db);
         const query = [];
         const createFkQuery = [];
@@ -462,15 +469,17 @@ export class DbPostgres implements DbInterface {
         console.log(execQuery);
         
         if (query.length > 0 || createFkQuery.length > 0 || dropFkQuery.length > 0) {
-            await this.client.query('BEGIN');
-            await this.client.query(execQuery);
-            await this.client.query('COMMIT');
+            if (!queryOnly) {
+                await this.client.query('BEGIN');
+                await this.client.query(execQuery);
+                await this.client.query('COMMIT');
+            }
 
         } else {
             console.log('nothing is changed');
         }
 
-        return true;
+        return execQuery;
 
     }
 

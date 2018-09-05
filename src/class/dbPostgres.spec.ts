@@ -22,17 +22,9 @@ describe('DbPostgres', () => {
         
     });
 
-    it.skip('query', async () => {
-        await pg.connect();
-       const query = pg.query(db);
-       console.log(query);
-       await pg.exec(query);
-        await pg.close();
-    });
-
     it.skip('create', async () => {
         await pg.connect();
-        const res = await pg.create(db);
+        const res = await pg.create(db, false);
         expect(res).toBeTruthy();
         await pg.close();
         
@@ -40,7 +32,7 @@ describe('DbPostgres', () => {
 
     it.skip('reCreate', async () => {
         await pg.connect();
-        const res = await pg.reCreate(db);
+        const res = await pg.reCreate(db, false);
         expect(res).toBeTruthy();
         await pg.close();
 
@@ -57,7 +49,7 @@ describe('DbPostgres', () => {
     
     it.skip ('update', async () => {
         await pg.connect();
-        const res = await pg.update(db);
+        const res = await pg.update(db, false);
         await pg.close();
     });
 

@@ -33,7 +33,7 @@ describe('DbMssql', () => {
 
     it.skip('create', async () => {
         await sql.connect();
-        const res = await sql.create(db);
+        const res = await sql.create(db, false);
         expect(res).toBeTruthy();
         await sql.close();
 
@@ -41,7 +41,7 @@ describe('DbMssql', () => {
 
     it.skip('reCreate', async () => {
         await sql.connect();
-        const res = await sql.reCreate(db);
+        const res = await sql.reCreate(db, false);
         expect(res).toBeTruthy();
         await sql.close();
 
@@ -58,7 +58,7 @@ describe('DbMssql', () => {
 
     it.skip ('update', async () => {
         await sql.connect();
-        const res = await sql.update(db);
+        const res = await sql.update(db, false);
         await sql.close();
     });
 

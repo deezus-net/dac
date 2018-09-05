@@ -15,6 +15,7 @@ export class Core {
     private dbHosts: DbHost[] = [];
     private db: Db;
     private outDir: string;
+    private queryOnly;
     /**
      * 
      * @param {Args} args
@@ -57,6 +58,7 @@ export class Core {
             trimDbProperties(this.db);
         }
         this.outDir = args.outDir;
+        this.queryOnly = args.query;
     }
 
     /**
@@ -119,7 +121,7 @@ export class Core {
      * @returns {Promise<void>}
      */
     private async create(db: DbInterface) {
-        await db.create(this.db);
+        const query = await db.create(this.db, this.queryOnly);
     }
 
     /**
@@ -128,7 +130,7 @@ export class Core {
      * @returns {Promise<void>}
      */
     private async reCreate(db: DbInterface) {
-        await db.reCreate(this.db);
+        await db.reCreate(this.db, this.queryOnly);
     }
 
     /**
@@ -137,7 +139,7 @@ export class Core {
      * @returns {Promise<void>}
      */
     private async update(db: DbInterface) {
-        await db.update(this.db);
+        await db.update(this.db, this.queryOnly);
     }
 
     /**
@@ -161,4 +163,5 @@ interface Args {
     hosts: string;
     input: string;
     outDir: string;
+    query: boolean;
 }
