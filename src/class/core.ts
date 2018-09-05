@@ -122,6 +122,9 @@ export class Core {
      */
     private async create(db: DbInterface) {
         const query = await db.create(this.db, this.queryOnly);
+        if (this.queryOnly){
+            console.log(query);
+        } 
     }
 
     /**
@@ -130,7 +133,10 @@ export class Core {
      * @returns {Promise<void>}
      */
     private async reCreate(db: DbInterface) {
-        await db.reCreate(this.db, this.queryOnly);
+        const query = await db.reCreate(this.db, this.queryOnly);
+        if (this.queryOnly){
+            console.log(query);
+        }
     }
 
     /**
