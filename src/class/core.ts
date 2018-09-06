@@ -160,14 +160,14 @@ export class Core {
 }
 
 interface Args {
-    type: string;
-    host: string;
-    port: string;
-    user: string;
-    password: string;
-    database: string;
-    hosts: string;
-    input: string;
-    outDir: string;
-    query: boolean;
+    type?: string;
+    host?: string;
+    port?: string;
+    user?: string;
+    password?: string;
+    database?: string;
+    hosts?: string;
+    input?: string;
+    outDir?: string;
+    query?: boolean;
 }

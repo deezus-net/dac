@@ -3,6 +3,21 @@ jobs:
   build:
     docker:
       - image: circleci/node
+      - image: mysql:5
+        environment:
+          MYSQL_RANDOM_ROOT_PASSWORD: 1
+          MYSQL_DATABASE: dac
+          MYSQL_USER: dac
+          MYSQL_PASSWORD: dac
+      - image: postgres
+        environment:
+          POSTGRES_USER: dac
+          POSTGRES_PASSWORD: dac
+          POSTGRES_DB: dac
+      - image: microsoft/mssql-server-linux
+        environment:
+          ACCEPT_EULA: Y
+          SA_PASSWORD: "!Passw0rd"
     steps:
       - checkout
       - restore_cache:
@@ -10,12 +25,12 @@ jobs:
       - run:
           name: npm install
           command: npm install
-     # - run:
-     #     name: test
-     #     command: npm run test
-     # - run:
-     #     name: build
-     #     command: npm run build  
+      - run:
+          name: test
+          command: npm run test
+      - run:
+          name: build
+          command: npm run build  
       - save_cache:
           key: node_modules-{{ checksum "package.json" }}
           paths:
