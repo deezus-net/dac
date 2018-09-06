@@ -5,6 +5,8 @@ import {promisify} from 'util';
 import { Core } from './class/core';
 import {Command} from './class/define';
 
+const p = require('../package.json');
+
 (async () => {
 
     const argChecks = async (command: string) => {
@@ -127,19 +129,19 @@ import {Command} from './class/define';
     });
 
     
-    program.version('0.0.1', '-v, --version')
+    program.version(p.version, '-v, --version')
         .usage('[command] [options]')
         
-        .option('-f, --hosts <value>', 'Hosts file path.')
-        .option('-H, --host <value>', 'Database server / DataBase name when use hosts file. (required if not use hosts)')
-        .option('-t, --type <value>', 'database type. (required if not use hosts)', /^(mysql|postgres|mssql)$/i, '')
-        .option('-u, --user <value>', 'Database user. (required if not use hosts)')
-        .option('-p, --password <value>', 'Database password. (required if not use hosts)')
-        .option('-P, --port <value>', 'Database port. (required if not use hosts)')
-        .option('-d, --database <value>', 'Database name. (required if not use hosts)')
-        .option('-i, --input <value>', 'Yaml path.')
+        .option('-f, --hosts <filepath>', 'Hosts file path.')
+        .option('-H, --host <host>', 'Database server / DataBase name when use hosts file. (required if not use hosts)')
+        .option('-t, --type <type>', 'database type. (required if not use hosts)', /^(mysql|postgres|mssql)$/i, '')
+        .option('-u, --user <user>', 'Database user. (required if not use hosts)')
+        .option('-p, --password <password>', 'Database password. (required if not use hosts)')
+        .option('-P, --port <port number>', 'Database port. (required if not use hosts)')
+        .option('-d, --database <database>', 'Database name. (required if not use hosts)')
+        .option('-i, --input <input-filepath>', 'Yaml path.')
         .option('-q, --query', 'Create Query.')
-        .option('-o, --outDir <value>', 'output when extracting, querying.');
+        .option('-o, --outDir <output-dir>', 'output when extracting, querying.');
 
     program.parse(process.argv);
 

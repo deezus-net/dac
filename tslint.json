@@ -23,7 +23,8 @@
     "forin": false,
     "object-literal-shorthand": false,
     "arrow-parens": false,
-    "max-line-length": false
+    "max-line-length": false,
+    "no-var-requires": false
   },
   "rulesDirectory": []
 }
