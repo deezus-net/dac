@@ -11,6 +11,17 @@ services:
       - "3306:3306"
     volumes:
       - .docker/mysql:/var/lib/mysql
+#  mysql8:
+#    image: mysql
+#    environment:
+#      MYSQL_RANDOM_ROOT_PASSWORD: 1
+#      MYSQL_DATABASE: dac
+#      MYSQL_USER: dac
+#      MYSQL_PASSWORD: dac
+#    ports:
+#      - "33060:33060"
+#    volumes:
+#      - .docker/mysql:/var/lib/mysql8
   postgres:
     image: postgres
     environment:
@@ -21,10 +32,10 @@ services:
       - "5432:5432"
     volumes:
       - .docker/postgres:/var/lib/postgresql/data
- # mssql:
- #   image: microsoft/mssql-server-linux
- #   environment:
- #     ACCEPT_EULA: Y
- #     SA_PASSWORD: "!Passw0rd"
- #   ports:
- #     - "1433:1433"
+  mssql:
+    image: microsoft/mssql-server-linux
+    environment:
+      ACCEPT_EULA: Y
+      SA_PASSWORD: "!Passw0rd"
+    ports:
+      - "1433:1433"

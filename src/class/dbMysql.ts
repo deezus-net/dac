@@ -300,7 +300,7 @@ export class DbMysql implements DbInterface {
 
         const query = [];
         if (tables.length > 0) {
-            query.push(`SET FOREIGN_KEY_CHECKS = 0`);
+            query.push(`SET FOREIGN_KEY_CHECKS = 0;`);
             query.push(`DROP TABLE ${tables.map(t => `\`${t}\``).join(',')};`);
             query.push(`SET FOREIGN_KEY_CHECKS = 1;`);
         }
@@ -309,9 +309,9 @@ export class DbMysql implements DbInterface {
         
         const execQuery = query.join('\n');
         if (!queryOnly) {
-            await this.connection.query('BEGIN');
+            await this.connection.query('BEGIN;');
             await this.connection.query(execQuery);
-            await this.connection.query('COMMIT');
+            await this.connection.query('COMMIT;');
         }
 
         return execQuery;

@@ -305,16 +305,16 @@ export class DbPostgres implements DbInterface {
         const tables = {};
         const data = await this.client.query('SELECT relname FROM "pg_stat_user_tables"');
         for (const row of data.rows) {
-            query.push(`DROP TABLE "${row['relname']}" CASCADE`);
+            query.push(`DROP TABLE "${row['relname']}" CASCADE;`);
         }
         query.push(this.createQuery(db.tables));
 
         const execQuery = query.join('\n');
         
         if (!queryOnly) {
-            await this.client.query('BEGIN');
+            await this.client.query('BEGIN;');
             await this.client.query(execQuery);
-            await this.client.query('COMMIT');
+            await this.client.query('COMMIT;');
         }
         return execQuery;
     }

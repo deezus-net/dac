@@ -1,6 +1,0 @@
-mysql:
-  type: mysql
-  host: localhost
-  user: dac
-  password: dac
-  database: dac
