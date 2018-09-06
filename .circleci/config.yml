@@ -29,11 +29,11 @@ jobs:
           name: build
           command: npm run build
       - run:
-          name: test
-          command: npm run test
-      - run:
           name: wait for database
           command: sleep 60
+      - run:
+          name: test
+          command: npm run test
       - save_cache:
           key: node_modules-{{ checksum "package.json" }}
           paths:
