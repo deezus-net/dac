@@ -8,7 +8,7 @@ tables:
         length: 100
         notNull: true
     indexes:
-      ix_name:
+      ix_item_categories_name:
         columns:
           name: asc
   items:
@@ -25,10 +25,10 @@ tables:
         type: int
         notNull: true
     indexes:
-      ix_name:
+      ix_items_name:
         columns:
           name: asc
           price: asc
-      ix_price:
+      ix_items_price:
         columns:
           price: asc

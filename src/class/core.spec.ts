@@ -13,7 +13,13 @@ describe('postgres', () => {
     });
 
     it('create', async () => {
-        await core.execute(Command.create);
+        try {
+            const query = await core.execute(Command.create);
+            console.log(query);
+        } catch (e) {
+            console.log(e);
+            
+        }
     });
     
     it('updte', async () => {
@@ -34,7 +40,7 @@ describe('postgres', () => {
     });
 });
 
-describe.skip('mysql', () => {
+describe('mysql', () => {
     let core: Core = null;
     beforeAll(async () => {
         core = new Core();
@@ -68,7 +74,7 @@ describe.skip('mysql', () => {
     });
 });
 
-describe.skip('mssql', () => {
+describe('mssql', () => {
     let core: Core = null;
     beforeAll(async () => {
         core = new Core();

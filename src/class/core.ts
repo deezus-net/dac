@@ -81,22 +81,26 @@ export class Core {
                     break;
             }
             await db.connect();
-            switch (command) {
-                case Command.extract:
-                    await this.extract(db, dbHost.name);
-                    break;
-                case Command.create:
-                    await this.create(db);
-                    break;
-                case Command.reCreate:
-                    await this.reCreate(db);
-                    break;
-                case Command.update:
-                    await this.update(db);
-                    break;
-                case Command.diff:
-                    await this.diff(db);
-                    break;
+            try {
+                switch (command) {
+                    case Command.extract:
+                        await this.extract(db, dbHost.name);
+                        break;
+                    case Command.create:
+                        await this.create(db);
+                        break;
+                    case Command.reCreate:
+                        await this.reCreate(db);
+                        break;
+                    case Command.update:
+                        await this.update(db);
+                        break;
+                    case Command.diff:
+                        await this.diff(db);
+                        break;
+                }
+            }catch (e) {
+                console.log(e);
             }
             await db.close();
         }
