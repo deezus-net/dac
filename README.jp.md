@@ -129,7 +129,7 @@ server2:
 
 ### extractの例
 全接続先に対して行う場合
-server1.yml, server2.ymlとサーバごとにファイルが作成されます
+server1.yml, server2.ymlと接続先ごとにファイルが作成されます
 ```
 dac extract -i hosts.yml -o .
 ```
