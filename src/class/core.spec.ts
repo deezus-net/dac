@@ -13,30 +13,28 @@ describe('postgres', () => {
     });
 
     it('create', async () => {
-        try {
-            const query = await core.execute(Command.create);
-            console.log(query);
-        } catch (e) {
-            console.log(e);
-            
-        }
+        const res = await core.execute(Command.create);
+        expect(res).toBeTruthy();
     });
     
     it('updte', async () => {
-        await core.execute(Command.update);
+        const res = await core.execute(Command.update);
+        expect(res).toBeTruthy();
     });
 
     it('recreate', async () => {
-        await core.execute(Command.reCreate);
+        const res = await core.execute(Command.reCreate);
+        expect(res).toBeTruthy();
     });
 
     it('diff', async () => {
-        const diff = await core.execute(Command.diff);
-        console.log(diff);
+        const res = await core.execute(Command.diff);
+        expect(res).toBeTruthy();
     });
 
     it('extract', async () => {
-        await core.execute(Command.extract);
+        const res = await core.execute(Command.extract);
+        expect(res).toBeTruthy();
     });
 });
 
@@ -53,24 +51,28 @@ describe('mysql', () => {
     });
 
     it('create', async () => {
-        await core.execute(Command.create);
+        const res = await core.execute(Command.create);
+        expect(res).toBeTruthy();
     });
 
     it('updte', async () => {
-        await core.execute(Command.update);
+        const res = await core.execute(Command.update);
+        expect(res).toBeTruthy();
     });
 
     it('recreate', async () => {
-        await core.execute(Command.reCreate);
+        const res = await core.execute(Command.reCreate);
+        expect(res).toBeTruthy();
     });
 
     it('diff', async () => {
-        const diff = await core.execute(Command.diff);
-        console.log(diff);
+        const res = await core.execute(Command.diff);
+        expect(res).toBeTruthy();
     });
 
     it('extract', async () => {
-        await core.execute(Command.extract);
+        const res = await core.execute(Command.extract);
+        expect(res).toBeTruthy();
     });
 });
 
@@ -87,23 +89,27 @@ describe('mssql', () => {
     });
 
     it('create', async () => {
-        await core.execute(Command.create);
+        const res = await core.execute(Command.create);
+        expect(res).toBeTruthy();
     });
 
     it('updte', async () => {
-        await core.execute(Command.update);
+        const res = await core.execute(Command.update);
+        expect(res).toBeTruthy();
     });
 
     it('recreate', async () => {
-        await core.execute(Command.reCreate);
+        const res = await core.execute(Command.reCreate);
+        expect(res).toBeTruthy();
     });
 
     it('diff', async () => {
-        const diff = await core.execute(Command.diff);
-        console.log(diff);
+        const res = await core.execute(Command.diff);
+        expect(res).toBeTruthy();
     });
 
     it('extract', async () => {
-        await core.execute(Command.extract);
+        const res = await core.execute(Command.extract);
+        expect(res).toBeTruthy();
     });
 });

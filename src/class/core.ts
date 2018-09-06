@@ -67,6 +67,7 @@ export class Core {
      * @returns {Promise<void>}
      */
     public async execute(command: string) {
+        let res = true;
         for (const dbHost of this.dbHosts) {
             let db: DbInterface;
             switch (dbHost.type) {
@@ -99,12 +100,14 @@ export class Core {
                         await this.diff(db);
                         break;
                 }
-            }catch (e) {
+            } catch (e) {
                 console.log(e);
+                res = false;
             }
             await db.close();
+
         }
-    
+        return res;
     }
 
     /**
