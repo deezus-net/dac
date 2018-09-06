@@ -4,7 +4,7 @@ DAC(Database As Codeの略)はデータベースのテーブル構造をyamlで�
 ## インストール
 npmで公開しています
 ```
-npm install @deeszus/dac
+npm install @deezus/dac
 ```
 ```
 yarn add @deezus/dac
