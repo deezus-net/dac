@@ -1,5 +1,4 @@
 # DAC
-=====
 DAC(Database As Codeの略)はデータベースのテーブル構造をyamlで管理するツールです
 
 ## インストール
@@ -51,7 +50,7 @@ dac extract -H localhost -t mysql -u root -p password -d dac -o .
 ```
 dac extract -f hosts.yml -o .
 ```
-
+------------
 ### create
 引数で接続情報を指定する場合
 ```
@@ -65,7 +64,7 @@ dac create -f hosts.yml -i db.yml
 ```
 dac create -f hosts.yml -i db.yml -q
 ```
-
+------------
 ### recreate
 引数で接続情報を指定する場合
 ```
@@ -79,7 +78,7 @@ dac recreate -f hosts.yml -i db.yml
 ```
 dac recreate -f hosts.yml -i db.yml -q
 ```
-
+------------
 ### update
 引数で接続情報を指定する場合
 ```
@@ -93,7 +92,7 @@ dac update -f hosts.yml -i db.yml
 ```
 dac update -f hosts.yml -i db.yml -q
 ```
-
+------------
 ### diff
 引数で接続情報を指定する場合
 ```
