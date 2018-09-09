@@ -149,8 +149,11 @@ export class DbMssql implements DbInterface {
             const request = new Request(query, err => {
                 if (err) {
                     console.log(err);
+                    resolve(null);
+                } else {
+                    resolve(rows);
                 }
-                resolve(null);
+                
             });
 
             if (parameters !== null) {
