@@ -150,7 +150,7 @@ export class DbMssql implements DbInterface {
                 if (err) {
                     console.log(err);
                 }
-                resolve(rows);
+                resolve(null);
             });
 
             if (parameters !== null) {
@@ -233,7 +233,6 @@ export class DbMssql implements DbInterface {
                 indexes[tableName][indexName].columns[row['column_name']] = row['is_descending_key'] ? 'desc' : 'asc';
             }
         }
-        console.log(indexes);
         query = `
             SELECT
                 t.name AS table_name,

@@ -11,11 +11,11 @@ describe('DbPostgres', () => {
     let db;
     
     beforeAll(async () => {
-        const hostText = await promisify(fs.readFile)('./test_data/hosts.yml', 'utf8');
+        const hostText = await promisify(fs.readFile)('./test_data/postgres/hosts.yml', 'utf8');
         const hosts = yaml.safeLoad(hostText) as {[key: string]: DbHost};
         pg = new DbPostgres(hosts['postgres']);
         
-        const dbText = await promisify(fs.readFile)('./test_data/sample.yml', 'utf8');
+        const dbText = await promisify(fs.readFile)('./test_data/postgres/db.yml', 'utf8');
         db = yamlToDb(dbText);
         
       //  db = yaml.safeLoad(dbText) as Db;
@@ -47,13 +47,13 @@ describe('DbPostgres', () => {
 
     });
     
-    it.skip ('update', async () => {
+    it ('update', async () => {
         await pg.connect();
         const res = await pg.update(db, false);
         await pg.close();
     });
 
-    it ('diff', async () => {
+    it.skip ('diff', async () => {
         await pg.connect();
         const res = await pg.diff(db);
         console.log(res);

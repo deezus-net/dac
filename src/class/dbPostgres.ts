@@ -6,6 +6,7 @@ import {DbInterface} from '../interfaces/dbInterface';
 import {DbTable} from '../interfaces/dbTable';
 import {ColumnType} from './columnType';
 import {checkDbDiff, dbToYaml, distinct, equalColumn, equalIndex, trimDbProperties} from './utility';
+import {ConsumerType} from 'tslint';
  
 export class DbPostgres implements DbInterface {
     private client: Client;
@@ -75,13 +76,18 @@ export class DbPostgres implements DbInterface {
      */
     public async extract() {
         const tables: { [key: string]: DbTable } = {};
-        const data = await this.client.query('SELECT relname FROM "pg_stat_user_tables"');
-        for (const row of data.rows) {
+        const tData = await this.client.query('SELECT relname FROM "pg_stat_user_tables"');
+        for (const row of tData.rows) {
             tables[row['relname']] = {
                 columns: {},
                 indexes: {}
             };
         }
+        
+        // get sequence list
+        const seqData = await this.client.query('SELECT sequence_name FROM information_schema.sequences');
+        const sequences = seqData.rows.map(row => row['sequence_name']);
+        
 
         for (const tableName of Object.keys(tables)) {
             const table = tables[tableName];
@@ -102,7 +108,7 @@ export class DbPostgres implements DbInterface {
             const tableData = await this.client.query(query, [tableName]);
 
             for (const row of tableData.rows) {
-                const id = /nextval/.test(row['column_default']);
+                const id = sequences.filter(seq => (row['column_default'] || '').indexOf(seq) !== -1).length > 0;
                 let type = id ? 'serial' : row['data_type'];
                 const length = row['character_maximum_length'] ? parseInt(row['character_maximum_length'], 10) : 0;
 
@@ -330,6 +336,7 @@ export class DbPostgres implements DbInterface {
         const createFkQuery = [];
         const dropFkQuery = [];
 
+        
         // add tables
         if (Object.keys(diff.addedTables).length > 0) {
             query.push(this.createQuery(diff.addedTables));
@@ -359,6 +366,7 @@ export class DbPostgres implements DbInterface {
             for (const columnName of Object.keys(table.modifiedColumns)) {
                 const [orgColumn, newColumn] = table.modifiedColumns[columnName];
 
+                console.log(orgColumn.type + ',' + newColumn.type + '/' + orgColumn.length + ',' + newColumn.length)
                 // change type
                 if (orgColumn.type !== newColumn.type || orgColumn.length !== newColumn.length) {
                     let type = newColumn.id ? 'serial' : newColumn.type;
