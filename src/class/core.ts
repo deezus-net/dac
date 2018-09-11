@@ -8,7 +8,7 @@ import { DbInterface} from '../interfaces/dbInterface';
 import {DbMssql} from './dbMssql';
 import {DbMysql} from './dbMysql';
 import {DbPostgres} from './dbPostgres';
-import {Command, DbType} from './define';
+import {Command, ConsoleColor, DbType} from './define';
 import {dbToYaml, trimDbProperties, yamlToDb} from './utility';
 import ObjectContaining = jasmine.ObjectContaining;
 
@@ -162,31 +162,33 @@ export class Core {
      * @returns {Promise<void>}
      */
     private async diff(db: DbInterface) {
+        
+        
         const diff = await db.diff(this.db);
         for (const tableName of Object.keys(diff.addedTables)){
-            console.log(`+ ${tableName}`);
+            console.log(`${ConsoleColor.fgCyan}%s${ConsoleColor.reset}`, `+ ${tableName}`);
         }
 
         for (const tableName of diff.deletedTableNames){
-            console.log(`- ${tableName}`);
+            console.log(`${ConsoleColor.fgRed}%s${ConsoleColor.reset}`, `- ${tableName}`);
         }
         
         for (const tableName of Object.keys(diff.modifiedTables)){
-            console.log(`# ${tableName}`);
+            console.log(`${ConsoleColor.fgGreen}%s${ConsoleColor.reset}`, `# ${tableName}`);
             
             for (const columnName of Object.keys(diff.modifiedTables[tableName].addedColumns)){
-                console.log(`  + ${columnName}`);
+                console.log(`${ConsoleColor.fgCyan}%s${ConsoleColor.reset}`, `  + ${columnName}`);
             }
 
             for (const columnName of diff.modifiedTables[tableName].deletedColumnName){
-                console.log(`  - ${columnName}`);
+                console.log(`${ConsoleColor.fgRed}%s${ConsoleColor.reset}`, `  - ${columnName}`);
             }
 
             for (const columnName of Object.keys(diff.modifiedTables[tableName].modifiedColumns)){
                 const orgColumn = diff.currentDb.tables[tableName].columns[columnName];
                 const column = diff.newDb.tables[tableName].columns[columnName];
                 
-                console.log(`  # ${columnName}`);
+                console.log(`${ConsoleColor.fgGreen}%s${ConsoleColor.reset}`, `  # ${columnName}`);
                 
                 if (orgColumn.type !== column.type || orgColumn.length !== column.length) {
                     console.log(`      type: ${orgColumn.type}${orgColumn.length ? `(${orgColumn.length})` : ``} -> ${column.type}${column.length ? `(${column.length})` : ``}`);
@@ -200,17 +202,17 @@ export class Core {
             }
             
             for (const indexName of Object.keys(diff.modifiedTables[tableName].addedIndexes)){
-                console.log(`  + ${indexName}`);
+                console.log(`${ConsoleColor.fgCyan}%s${ConsoleColor.reset}`, `  + ${indexName}`);
             }
             for (const indexName of diff.modifiedTables[tableName].deletedIndexNames){
-                console.log(`  - ${indexName}`);
+                console.log(`${ConsoleColor.fgRed}%s${ConsoleColor.reset}`, `  - ${indexName}`);
             }
 
             for (const indexName of Object.keys(diff.modifiedTables[tableName].modifiedIndexes)){
                 const orgIndex = diff.currentDb.tables[tableName].indexes[indexName];
                 const index = diff.newDb.tables[tableName].indexes[indexName];
                 
-                console.log(`  # ${indexName}`);
+                console.log(`${ConsoleColor.fgGreen}%s${ConsoleColor.reset}`, `  # ${indexName}`);
                 
                 const orgIndexColumns = Object.keys(orgIndex.columns).map(c => `${c} ${orgIndex.columns[c]}`).join(',');
                 const indexColumns = Object.keys(index.columns).map(c => `${c} ${index.columns[c]}`).join(',');
