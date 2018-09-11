@@ -10,6 +10,7 @@ import {DbMysql} from './dbMysql';
 import {DbPostgres} from './dbPostgres';
 import {Command, DbType} from './define';
 import {dbToYaml, trimDbProperties, yamlToDb} from './utility';
+import ObjectContaining = jasmine.ObjectContaining;
 
 export class Core {
     private dbHosts: DbHost[] = [];
@@ -161,7 +162,69 @@ export class Core {
      * @returns {Promise<void>}
      */
     private async diff(db: DbInterface) {
-        await db.diff(this.db);
+        const diff = await db.diff(this.db);
+        for (const tableName of Object.keys(diff.addedTables)){
+            console.log(`+ ${tableName}`);
+        }
+
+        for (const tableName of diff.deletedTableNames){
+            console.log(`- ${tableName}`);
+        }
+        
+        for (const tableName of Object.keys(diff.modifiedTables)){
+            console.log(`# ${tableName}`);
+            
+            for (const columnName of Object.keys(diff.modifiedTables[tableName].addedColumns)){
+                console.log(`  + ${columnName}`);
+            }
+
+            for (const columnName of diff.modifiedTables[tableName].deletedColumnName){
+                console.log(`  - ${columnName}`);
+            }
+
+            for (const columnName of Object.keys(diff.modifiedTables[tableName].modifiedColumns)){
+                const orgColumn = diff.currentDb.tables[tableName].columns[columnName];
+                const column = diff.newDb.tables[tableName].columns[columnName];
+                
+                console.log(`  # ${columnName}`);
+                
+                if (orgColumn.type !== column.type || orgColumn.length !== column.length) {
+                    console.log(`      type: ${orgColumn.type}${orgColumn.length ? `(${orgColumn.length})` : ``} -> ${column.type}${column.length ? `(${column.length})` : ``}`);
+                }
+                if (orgColumn.pk !== column.pk) {
+                    console.log(`      pk: ${orgColumn.pk} -> ${column.pk}`);
+                }
+                if (orgColumn.notNull !== column.notNull) {
+                    console.log(`      not null: ${orgColumn.notNull} -> ${column.notNull}`);
+                }
+            }
+            
+            for (const indexName of Object.keys(diff.modifiedTables[tableName].addedIndexes)){
+                console.log(`  + ${indexName}`);
+            }
+            for (const indexName of diff.modifiedTables[tableName].deletedIndexNames){
+                console.log(`  - ${indexName}`);
+            }
+
+            for (const indexName of Object.keys(diff.modifiedTables[tableName].modifiedIndexes)){
+                const orgIndex = diff.currentDb.tables[tableName].indexes[indexName];
+                const index = diff.newDb.tables[tableName].indexes[indexName];
+                
+                console.log(`  # ${indexName}`);
+                
+                const orgIndexColumns = Object.keys(orgIndex.columns).map(c => `${c} ${orgIndex.columns[c]}`).join(',');
+                const indexColumns = Object.keys(index.columns).map(c => `${c} ${index.columns[c]}`).join(',');
+                if(orgIndexColumns !== indexColumns) {
+                    console.log(`      columns: ${orgIndexColumns} -> ${indexColumns}`);
+                }
+                
+                if (orgIndex.unique !== index.unique) {
+                    console.log(`      unique: ${orgIndex.unique} -> ${index.unique}`);
+                } 
+                
+            }
+        } 
+        
     }
 
 }
