@@ -120,7 +120,7 @@ export class Core {
     private async extract(db: DbInterface, name: string) {
         const data = await db.extract();
     //    trimDbProperties(data);
-        await promisify(fs.writeFile)(path.join(this.outDir, `${name}.yaml`), dbToYaml(data));
+        await promisify(fs.writeFile)(path.join(this.outDir, `${name}.yml`), dbToYaml(data));
     }
 
     /**
