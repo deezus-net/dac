@@ -31,16 +31,16 @@
     "@mysql/xdevapi": "^8.0.12",
     "commander": "^2.17.1",
     "js-yaml": "^3.12.0",
+    "mssql": "^4.1.0",
     "pg": "^7.4.3",
-    "promise-mysql": "^3.3.1",
-    "tedious": "^2.6.4"
+    "promise-mysql": "^3.3.1"
   },
   "devDependencies": {
     "@types/jest": "^23.3.1",
     "@types/js-yaml": "^3.11.2",
+    "@types/mssql": "^4.0.10",
     "@types/mysql": "^2.15.5",
     "@types/pg": "^7.4.10",
-    "@types/tedious": "^2.6.1",
     "jest": "^23.5.0",
     "ts-jest": "^23.1.4",
     "tslint": "^5.11.0",

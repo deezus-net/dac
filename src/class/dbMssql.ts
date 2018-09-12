@@ -1,4 +1,4 @@
-import {Connection, Request, TYPES} from 'tedious';
+import { ConnectionPool, Transaction } from 'mssql';
 import {Db} from '../interfaces/db';
 import {DbColumn} from '../interfaces/dbColumn';
 import {DbHost} from '../interfaces/dbHost';
@@ -9,7 +9,8 @@ import {checkDbDiff, distinct, trimDbProperties} from './utility';
 
 export class DbMssql implements DbInterface {
 
-    private connection: Connection;
+    private connection: ConnectionPool;
+    private transaction: Transaction;
 
     constructor(private dbHost: DbHost) {
 
@@ -20,27 +21,17 @@ export class DbMssql implements DbInterface {
      * @returns {Promise<void>}
      */
     public async connect() {
-        return await new Promise<boolean>(resolve => {
-            const connection = new Connection({
-                userName: this.dbHost.user,
-                password: this.dbHost.password,
-                server: this.dbHost.host,
-                options: {
-                    database: this.dbHost.database,
-                    encrypt: false
-                }
-            });
-
-            connection.on('connect', err => {
-                if (!err) {
-                    this.connection = connection;
-                    resolve(true);
-                } else {
-                    resolve(false);
-                }
-            });
-
+        this.connection = await new ConnectionPool({
+            user: 'sa',
+            password: '!Passw0rd',
+            database: 'master',
+            server: 'localhost',
+            options: {
+                encrypt: false
+            }
         });
+        await this.connection.connect();
+        return true;
     }
 
     /**
@@ -48,10 +39,11 @@ export class DbMssql implements DbInterface {
      * @returns {Promise<void>}
      */
     public async close() {
-        return await new Promise<boolean>(resolve => {
-            this.connection.close();
-            resolve(true);
-        });
+        if (this.transaction) {
+            await this.transaction.rollback();
+        } 
+        await this.connection.close();
+        return true;
     }
 
     /**
@@ -82,18 +74,18 @@ export class DbMssql implements DbInterface {
     /**
      *
      * @param {Db} db
+     * @param queryOnly
      * @returns {Promise<boolean>}
      */
     public async reCreate(db: Db, queryOnly: boolean) {
         const createQuery = this.createQuery(db.tables);
         const queries = [];
         
-
         // get table and foreign key list
         const tables: string[] = [];
         const foreignKeys: { [key: string]: string } = {};
 
-        let query = `
+        const query = `
                 SELECT
                     t.name AS table_name,
                     fk.name AS fk_name
@@ -117,7 +109,7 @@ export class DbMssql implements DbInterface {
             queries.push(`ALTER TABLE`);
             queries.push(`    [${fkName}]`);
             queries.push(`DROP CONSTRAINT`);
-            queries.push(`    [${foreignKeys[fkName]}];`)
+            queries.push(`    [${foreignKeys[fkName]}];`);
         }
 
         // drop exist tables
@@ -145,35 +137,14 @@ export class DbMssql implements DbInterface {
      * @returns {Promise<any>}
      */
     public async exec(query: string, parameters: any = null) {
-        const res = await new Promise<any[]>(resolve => {
-            const request = new Request(query, err => {
-                if (err) {
-                    console.log(err);
-                    resolve(null);
-                } else {
-                    resolve(rows);
-                }
-                
-            });
-
-            if (parameters !== null) {
-                for (const name of Object.keys(parameters)) {
-                    request.addParameter(name, TYPES.NVarChar, parameters[name]);
-                }
+        const request = this.connection.request();
+        if (parameters !== null) {
+            for (const name of Object.keys(parameters)) {
+                request.input(name, parameters[name]);
             }
-
-            const rows = [];
-            request.on('row', columns => {
-                const row = {};
-                columns.forEach(column => {
-                    row[column.metadata.colName] = column.value;
-                });
-                rows.push(row);
-            });
-            this.connection.execSql(request);
-        });
-        return res;
-
+        }
+        const data = await request.query(query);
+        return data.recordset;
     }
 
     /**
@@ -439,8 +410,7 @@ export class DbMssql implements DbInterface {
         const query = [];
         const createFkQuery = [];
         const dropFkQuery = [];
-
-
+        
         // add tables
         if (Object.keys(diff.addedTables).length > 0) {
             query.push(this.createQuery(diff.addedTables));
@@ -583,17 +553,13 @@ export class DbMssql implements DbInterface {
 
     }
 
-
     /**
      *
      * @returns {Promise}
      */
     private async beginTransaction() {
-        return new Promise(resolve => {
-            this.connection.beginTransaction(err => {
-                resolve();
-            });
-        });
+        this.transaction = new Transaction(this.connection);
+        await this.transaction.begin();
     }
 
     /**
@@ -601,17 +567,14 @@ export class DbMssql implements DbInterface {
      * @returns {Promise}
      */
     private async commit() {
-        return new Promise(resolve => {
-            this.connection.commitTransaction(err => {
-                resolve();
-            });
-        });
+        await this.transaction.commit();
+        this.transaction = null;
     }
 
     /**
      *
-     * @param {{[p: string]: DbTable}} tables
      * @returns {string}
+     * @param tables
      */
     private createQuery(tables: { [key: string]: DbTable }) {
 
@@ -695,8 +658,7 @@ export class DbMssql implements DbInterface {
      * @returns {string}
      */
     private static createAlterForeignKey(name: string, table: string, column: string, targetTable: string, targetColumn: string, onupdate: string, ondelete: string) {
-
-
+        
         if (onupdate) {
             onupdate = ` ON UPDATE ${onupdate} `;
         }
