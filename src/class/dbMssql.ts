@@ -15,19 +15,18 @@ export class DbMssql implements DbInterface {
     constructor(private dbHost: DbHost) {
 
     }
-
     /**
      *
      * @returns {Promise<void>}
      */
     public async connect() {
         this.connection = await new ConnectionPool({
-            user: 'sa',
-            password: '!Passw0rd',
-            database: 'master',
-            server: 'localhost',
+            user: this.dbHost.user,
+            password: this.dbHost.password,
+            database: this.dbHost.database,
+            server: this.dbHost.host,
             options: {
-                encrypt: false
+                encrypt: true
             }
         });
         await this.connection.connect();
