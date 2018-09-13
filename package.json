@@ -1,6 +1,6 @@
 {
-  "name": "dac",
-  "version": "0.0.1",
+  "name": "@deezus/dac",
+  "version": "0.0.2",
   "main": "index.js",
   "repository": "https://github.com/deezus-net/dac.git",
   "author": "deezus-net <info@deezus.net>",

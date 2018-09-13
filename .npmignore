@@ -1,3 +1,11 @@
 docker-compose.yml
 test_data
 .circleci
+.git
+.idea
+.vscode
+coverage
+yarn.lock
+yarn-error.log
+.docker
+dac.sln
