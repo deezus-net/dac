@@ -5,10 +5,10 @@ DAC (Database As Code) is a tool to manage the database table structure with yam
 ## Installation
 It is published in npm
 ```
-npm install @ deezus / dac
+npm install @deezus/dac
 ```
 ```
-yarn add @ deezus / dac
+yarn add @deezus/dac
 ```
 
 ## How to use
@@ -45,18 +45,18 @@ dac [command] [option]
 ### extract
 When specifying connection information with argument
 ```
-dac extract - H localhost - t mysql - u root - p password - d dac - o.
+dac extract -H localhost -t mysql -u root -p password -d dac -o .
 ```
 When setting connection information in a file
 ```
-dac extract - f hosts.yml - o.
+dac extract -f hosts.yml -o .
 ```
 --------------
   
 ### create
 When specifying connection information with argument
 ```
-dac create - H localhost - t mysql - u root - p password - d dac - i db.yml
+dac create -H localhost -t mysql -u root -p password -d dac -i db.yml
 ```
 When setting connection information in a file
 ```
@@ -71,7 +71,7 @@ dac create -f hosts.yml -i db.yml -q
 ### recreate
 When specifying connection information with argument
 ```
-dac recreate - H localhost - t mysql - u root - p password - d dac - i db.yml
+dac recreate -H localhost -t mysql -u root -p password -d dac -i db.yml
 ```
 When setting connection information in a file
 ```
@@ -86,7 +86,7 @@ dac recreate -f hosts.yml -i db.yml -q
 ### update
 When specifying connection information with argument
 ```
-dac update - H localhost - t mysql - u root - p password - d dac - i db.yml
+dac update -H localhost -t mysql -u root -p password -d dac -i db.yml
 ```
 When setting connection information in a file
 ```
@@ -94,14 +94,14 @@ dac update -f hosts.yml -i db.yml
 ```
 When query is displayed
 ```
-dac update - f hosts.yml - i db.yml - q
+dac update -f hosts.yml -i db.yml -q
 ```
 --------------
   
 ### diff
 When specifying connection information with argument
 ```
-dac diff - H localhost - t mysql - u root - p password - d dac - i db.yml
+dac diff -H localhost -t mysql -u root -p password -d dac -i db.yml
 ```
 When setting connection information in a file
 ```
@@ -132,11 +132,11 @@ server 2:
 When doing to all connection destinations
 A file is created for server1.yml, server2.yml and connection destination
 ```
-dac extract -i hosts.yml -o.
+dac extract -i hosts.yml -o .
 ```
 
 When specifying the connection destination name
 It extracts only 'server1' and creates server1.yml
 ```
-dac extract - i hosts.yml - h server1 - o.
+dac extract -i hosts.yml -h server1 -o .
 ```
