@@ -1,6 +1,6 @@
 # DAC
 DAC(Database As Codeの略)はデータベースのテーブル構造をyamlで管理するツールです
-[![CircleCI](https://circleci.com/gh/deezus-net/dac/tree/develop.svg?style=svg)](https://circleci.com/gh/deezus-net/dac/tree/develop)
+[![CircleCI](https://circleci.com/gh/deezus-net/dac/tree/master.svg?style=svg)](https://circleci.com/gh/deezus-net/dac/tree/develop)
 ## インストール
 npmで公開しています
 ```
@@ -27,15 +27,15 @@ dac [コマンド] [オプション]
 ## オプション
 | オプション | 説明 | 例など | |
 |:---|:---|:---|:---:|
-| -f, --host &lt;hosts&gt;| データベースへの接続情報ymlファイルパス | hosts.yml |
+| -f, --host &lt;hosts&gt;| データベースへの接続情報ymlファイルパス | hosts.yml | |
 | -H, --host &lt;host&gt; | データベースホスト(-f指定時は接続先名)|localhost| * |
 | -t, --type &lt;type&gt; | データベースタイプ | mysql, postgres, mssql | * |
 | -u, --user &lt;user&gt; | データベースに接続するユーザー |  | * |
 | -p, --password &lt;password&gt; | データベースに接続する際のパスワード |  | * |
 | -d, --database &lt;database&gt; | データベース名 | | * |
-| -i, --input &lt;input&gt; | 入力ymlファイルパス | db.yml |
-| -o, --outDir &lt;outDir&gt; | extract時の出力先ディレクトリ | |
-| -q, --query | create, recreate, update 時にクエリを実行せずに画面に出力します|
+| -i, --input &lt;input&gt; | 入力ymlファイルパス | db.yml | |
+| -o, --outDir &lt;outDir&gt; | extract時の出力先ディレクトリ | | |
+| -q, --query | create, recreate, update 時にクエリを実行せずに画面に出力します| | |
 
 ※-f未指定の場合は*のオプションが必須です
 

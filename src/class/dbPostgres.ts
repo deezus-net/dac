@@ -6,7 +6,6 @@ import {DbInterface} from '../interfaces/dbInterface';
 import {DbTable} from '../interfaces/dbTable';
 import {ColumnType} from './columnType';
 import {checkDbDiff, dbToYaml, distinct, equalColumn, equalIndex, trimDbProperties} from './utility';
-import {ConsumerType} from 'tslint';
  
 export class DbPostgres implements DbInterface {
     private client: Client;
