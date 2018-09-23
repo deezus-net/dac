@@ -1,5 +1,5 @@
 # DAC
-DAC(Database As Codeの略)はデータベースのテーブル構造をyamlで管理するツールです
+DAC(Database As Codeの略)はデータベースのテーブル構造をyamlで管理するツールです  
 [![CircleCI](https://circleci.com/gh/deezus-net/dac/tree/master.svg?style=svg)](https://circleci.com/gh/deezus-net/dac/tree/develop)
 ## インストール
 npmで公開しています

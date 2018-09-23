@@ -1,6 +1,7 @@
 # DAC
-DAC (Database As Code) is a tool to manage the database table structure with yaml
-[! [CircleCI] (https://circleci.com/gh/deezus-net/dac/tree/master.svg?style=svg)] (https://circleci.com/gh/deezus-net/dac/ tree / develop)
+DAC (Database As Code) is a tool to manage the database table structure with yaml  
+[![CircleCI](https://circleci.com/gh/deezus-net/dac/tree/master.svg?style=svg)](https://circleci.com/gh/deezus-net/dac/tree/develop)
+
 ## Installation
 It is published in npm
 ```
