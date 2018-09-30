@@ -1,0 +1,38 @@
+tables:
+  item_categories:
+    columns:
+      id:
+        id: true
+      name:
+        type: varchar
+        length: 100
+        notNull: true
+    indexes:
+      ix_item_categories_name:
+        columns:
+          name: asc
+  items:
+    columns: 
+      id:
+        id: true
+      name:
+        type: varchar
+        length: 100
+      price:
+        type: int
+        notNull: true
+      category_id:
+        type: int
+        notNull: true
+        fk:
+          fk_item_categories:
+            table: item_categories
+            column: id
+    indexes:
+      ix_items_name:
+        columns:
+          name: asc
+          price: asc
+      ix_items_price:
+        columns:
+          price: asc
