@@ -6,6 +6,7 @@ import {DbIndex} from '../interfaces/dbIndex';
 import {DbInterface} from '../interfaces/dbInterface';
 import {DbTable} from '../interfaces/dbTable';
 import {checkDbDiff, distinct, trimDbProperties} from './utility';
+import ObjectContaining = jasmine.ObjectContaining;
 
 export class DbMssql implements DbInterface {
 
@@ -54,6 +55,27 @@ export class DbMssql implements DbInterface {
         return this.createQuery(db.tables);
     }
 
+    /**
+     * 
+     * @param {Db} db
+     * @param {boolean} queryOnly
+     * @returns {Promise<string>}
+     */
+    public async drop(db: Db, queryOnly: boolean) {
+        const queries = [];
+        for (const tableName of Object.keys(db.tables)){
+            queries.push(`DROP TABLE IF EXISTS [${tableName}];`);
+        }
+        const execQuery = queries.join('\n');
+
+        if (!queryOnly) {
+            await this.beginTransaction();
+            await this.exec(execQuery);
+            await this.commit();
+        }
+        return execQuery;
+    }
+    
     /**
      *
      * @param {Db} db
@@ -536,7 +558,6 @@ export class DbMssql implements DbInterface {
         }
 
         const execQuery = dropFkQuery.join('\n') + '\n' + query.join('\n') + '\n' + createFkQuery.join('\n');
-        console.log(execQuery);
 
         if (query.length > 0 || createFkQuery.length > 0 || dropFkQuery.length > 0) {
             if (queryOnly) {
@@ -544,11 +565,11 @@ export class DbMssql implements DbInterface {
                 await this.exec(execQuery);
                 await this.commit();
             }
+            return execQuery;
 
         } else {
-            console.log('nothing is changed');
+            return null;
         }
-        return execQuery;
 
     }
 

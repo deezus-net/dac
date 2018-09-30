@@ -47,7 +47,7 @@ describe('DbPostgres', () => {
 
     });
     
-    it ('update', async () => {
+    it.skip ('update', async () => {
         await pg.connect();
         const res = await pg.update(db, false);
         await pg.close();
@@ -59,6 +59,14 @@ describe('DbPostgres', () => {
         console.log(res);
         await pg.close();
     });
+
+    it ('drop', async () => {
+        await pg.connect();
+        const res = await pg.drop(db, false);
+        console.log(res);
+        await pg.close();
+    });
+
 
     afterAll(() => {
         

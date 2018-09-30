@@ -12,11 +12,11 @@ describe('DbMssql', () => {
     let db;
 
     beforeAll(async () => {
-        const hostText = await promisify(fs.readFile)('./test_data/hosts.yml', 'utf8');
+        const hostText = await promisify(fs.readFile)('./test_data/mssql/hosts.yml', 'utf8');
         const hosts = yaml.safeLoad(hostText) as {[key: string]: DbHost};
         sql = new DbMssql(hosts['mssql']);
 
-        const dbText = await promisify(fs.readFile)('./test_data/sample.yml', 'utf8');
+        const dbText = await promisify(fs.readFile)('./test_data/mssql/db.yml', 'utf8');
         db = yamlToDb(dbText);
 
         //  db = yaml.safeLoad(dbText) as Db;
@@ -30,7 +30,12 @@ describe('DbMssql', () => {
         await sql.close();
     });
 
-
+    it ('drop', async () => {
+        await sql.connect();
+        const res = await sql.drop(db, false);
+        await sql.close();
+    });
+    
     it.skip('create', async () => {
         await sql.connect();
         const res = await sql.create(db, false);

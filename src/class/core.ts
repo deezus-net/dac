@@ -85,6 +85,9 @@ export class Core {
             await db.connect();
             try {
                 switch (command) {
+                    case Command.drop:
+                        await this.drop(db);
+                        break;
                     case Command.extract:
                         await this.extract(db, dbHost.name);
                         break;
@@ -111,6 +114,18 @@ export class Core {
         return res;
     }
 
+    /**
+     * 
+     * @param {DbInterface} db
+     * @returns {Promise<void>}
+     */
+    private async drop(db: DbInterface) {
+        const query = await db.drop(this.db, this.queryOnly);
+        if (this.queryOnly){
+            console.log(query);
+        }
+    }
+    
     /**
      * 
      * @param {DbInterface} db
@@ -153,7 +168,12 @@ export class Core {
      * @returns {Promise<void>}
      */
     private async update(db: DbInterface) {
-        await db.update(this.db, this.queryOnly);
+        const query = await db.update(this.db, this.queryOnly);
+        if (query === null) {
+            console.log('nothing is changed');
+        } else if (this.queryOnly) {
+            console.log(query);
+        }
     }
 
     /**
@@ -162,7 +182,6 @@ export class Core {
      * @returns {Promise<void>}
      */
     private async diff(db: DbInterface) {
-        
         
         const diff = await db.diff(this.db);
         for (const tableName of Object.keys(diff.addedTables)){

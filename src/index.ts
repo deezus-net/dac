@@ -28,7 +28,7 @@ const p = require('../package.json');
             return false;
         }
 
-        if ([Command.create, Command.reCreate, Command.update, Command.diff].indexOf(command) !== -1 && !program.input) {
+        if ([Command.create, Command.reCreate, Command.update, Command.diff, Command.drop ].indexOf(command) !== -1 && !program.input) {
             console.log(`input is required`);
             return false;
         }
@@ -125,6 +125,24 @@ const p = require('../package.json');
                 query: program.query
             });
             await core.execute(Command.diff);
+        }
+    });
+
+    program.command(Command.drop).description('Drop tables by yaml').action(async () => {
+        if (await argChecks(Command.drop)) {
+            await core.setHosts({
+                type: program.type,
+                host: program.host,
+                port: program.port,
+                hosts: program.hosts,
+                user: program.user,
+                password: program.password,
+                database: program.database,
+                input: program.input,
+                outDir: program.outDir,
+                query: program.query
+            });
+            await core.execute(Command.drop);
         }
     });
 

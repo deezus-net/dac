@@ -60,6 +60,27 @@ export class DbPostgres implements DbInterface {
     }
 
     /**
+     * 
+     * @param {Db} db
+     * @param {boolean} queryOnly
+     * @returns {Promise<string>}
+     */
+    public async drop(db: Db, queryOnly: boolean) {
+        const queries = [];
+        for (const tableName of Object.keys(db.tables)){
+            queries.push(`DROP TABLE IF EXISTS "${tableName}";`);
+        }
+        const execQuery = queries.join('\n');
+
+        if (!queryOnly) {
+            await this.client.query('BEGIN');
+            await this.client.query(execQuery);
+            await this.client.query('COMMIT');
+        }
+        return execQuery;
+    }
+
+    /**
      *
      * @param {Db} db
      * @returns {Promise<DiffResult>}
@@ -473,7 +494,6 @@ export class DbPostgres implements DbInterface {
         }
 
         const execQuery = dropFkQuery.join('\n') + '\n' + query.join('\n') + '\n' +  createFkQuery.join('\n');
-        console.log(execQuery);
         
         if (query.length > 0 || createFkQuery.length > 0 || dropFkQuery.length > 0) {
             if (!queryOnly) {
@@ -481,12 +501,12 @@ export class DbPostgres implements DbInterface {
                 await this.client.query(execQuery);
                 await this.client.query('COMMIT');
             }
-
+            return execQuery;
         } else {
-            console.log('nothing is changed');
+            return null;
         }
 
-        return execQuery;
+        
 
     }
 

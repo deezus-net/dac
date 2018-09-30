@@ -57,6 +57,27 @@ export class DbMysql implements DbInterface {
     }
 
     /**
+     * 
+     * @param {Db} db
+     * @param {boolean} queryOnly
+     * @returns {Promise<string>}
+     */
+    public async drop(db: Db, queryOnly: boolean) {
+        const queries = [];
+        for (const tableName of Object.keys(db.tables)){
+            queries.push(`DROP TABLE IF EXISTS \`${tableName}\`;`);
+        }
+        const execQuery = queries.join('\n');
+
+        if (!queryOnly) {
+            await this.connection.query('BEGIN;');
+            await this.connection.query(execQuery);
+            await this.connection.query('COMMIT;');
+        }
+        return execQuery;
+    }
+
+    /**
      *
      * @param {Db} db
      * @returns {Promise<DiffResult>}
@@ -459,7 +480,6 @@ export class DbMysql implements DbInterface {
         }
 
         const execQuery = dropFkQuery.join('\n') + '\n' + query.join('\n') + '\n' +  createFkQuery.join('\n');
-        console.log(execQuery);
 
         if (query.length > 0 || createFkQuery.length > 0 || dropFkQuery.length > 0) {
             if (!queryOnly) {
@@ -467,193 +487,11 @@ export class DbMysql implements DbInterface {
                 await this.connection.query(execQuery);
                 await this.connection.query('COMMIT;');
             }
+            return execQuery;
 
         } else {
-            console.log('nothing is changed');
+            return null;
         }
-
-
-        return execQuery;
-        
-        /*
-        await this.connection.query('BEGIN');
-        const currentDb = await this.extract();
-
-        let change = 0;
-
-        // foregin key indexes
-        const fkIndexes: string[] = [];
-        for (const tableName of Object.keys(db.tables)) {
-            const table = db.tables[tableName];
-            for (const columnName of Object.keys(table.columns).filter(c => table.columns[c].fk)) {
-                fkIndexes.push(`${tableName}.${columnName}`);
-                for (const fk of Object.keys(table.columns[columnName].fk)) {
-                    fkIndexes.push(fk);
-                }
-            }
-        }
-
-        for (const tableName of Object.keys(db.tables)) {
-            const table = db.tables[tableName];
-
-            const orgTable = currentDb.tables[tableName];
-
-            if (orgTable) {
-                // alter
-                for (const columnName of Object.keys(table.columns)) {
-                    const col = table.columns[columnName];
-                    const orgCol = orgTable.columns[columnName];
-
-                    const notNull = col.notNull ? ' NOT NULL ' : ' NULL ';
-                    const def = col.default ? ` DEFAULT ${col.default} ` : '';
-                    const type = (col.id ? 'int' : col.type) + (col.length > 0 ? `(${col.length})` : '');
-
-                    if (!orgCol) {
-                        // add column
-                        const query = `
-                                ALTER TABLE 
-                                    \`${tableName}\` 
-                                ADD COLUMN \`${columnName}\` ${type}${ (col.id ? ' AUTO_INCREMENT' : '')}${notNull}${def}`;
-                        await this.connection.query(query);
-                        change++;
-
-                    } else if (!equalColumn(col, orgCol)) {
-                        // if change execute alter
-                        const query = `
-                                ALTER TABLE 
-                                    \`${tableName}\`
-                                MODIFY \`${columnName}\` ${type}${(col.id ? ' AUTO_INCREMENT' : '')}${notNull}${def}`;
-                        console.log(query);
-                        await this.connection.query(query);
-                        change++;
-                    }
-                }
-
-                for (const delCol of Object.keys(orgTable.columns).filter(oc => Object.keys(table.columns).indexOf(oc) === -1)) {
-                    const query = `
-                                ALTER TABLE 
-                                    \`${tableName}\` 
-                                DROP COLUMN \`${delCol}\``;
-                    await this.connection.query(query);
-                    change++;
-                }
-
-                for (const indexName in table.indexes) {
-                    const orgIndex = orgTable.indexes[indexName];
-                    const index = table.indexes[indexName];
-
-                    if (!orgIndex) {
-                        // add index
-                        const query = `
-                                ALTER TABLE 
-                                    \`${tableName}\`
-                                ADD ${(index.unique ? 'UNIQUE ' : '')}INDEX \`${indexName}\` (${Object.keys(index.columns).map(c => `\`${c}\` ${index.columns[c]}`)})`;
-                        await this.connection.query(query);
-                        change++;
-
-                    } else if (!equalIndex(index, orgIndex)) {
-                        // if change execute alter
-                        const query = `
-                                ALTER TABLE 
-                                    \`${tableName}\`
-                                DROP INDEX 
-                                    \`${indexName}\`,
-                                ADD ${(index.unique ? 'UNIQUE ' : '')}INDEX \`${indexName}\` (${Object.keys(index.columns).map(c => `\`${c}\` ${index.columns[c]}`)})`;
-                        await this.connection.query(query);
-                        change++;
-                    }
-                }
-
-                for (const indexName of Object.keys(orgTable.indexes)) {
-                    if (table.indexes[indexName]) {
-                        continue;
-                    }
-
-                    // ignore foreign key index 
-                    if (fkIndexes.indexOf(tableName + "." + Object.keys(orgTable.indexes[indexName].columns).map(c => c.split(' ')[0]).join('')) === -1) {
-                        const query = `
-                                ALTER TABLE 
-                                    \`${tableName}\` 
-                                DROP INDEX \`${indexName}\``;
-                        await this.connection.query(query);
-                        change++;
-                    }
-                }
-
-                // foregin key
-                for (const columnName of Object.keys(table.columns).filter(c => table.columns[c].fk)) {
-                    for (const fkName of Object.keys(table.columns[columnName].fk)) {
-                        console.log(orgTable.columns[columnName].fk);
-                        const orgForeignKey = orgTable.columns[columnName] &&
-                        orgTable.columns[columnName].fk &&
-                        orgTable.columns[columnName].fk[fkName] ? orgTable.columns[columnName].fk[fkName] : null;
-                        const foreignKey = table.columns[columnName].fk[fkName];
-                        if (orgForeignKey !== null) {
-                            if (foreignKey.update !== orgForeignKey.update || foreignKey.delete !== orgForeignKey.delete) {
-                                // drop
-                                const query = `
-                                        ALTER TABLE 
-                                            \`${tableName}\` 
-                                        DROP FOREIGN KEY \`${fkName}\``;
-                                await this.connection.query(query);
-                                change++;
-                            } else {
-                                continue;
-                            }
-                        }
-
-                        const query = DbMysql.createAlterForeignKey(tableName, columnName, fkName, foreignKey.update, foreignKey.delete, db.tables);
-                        await this.connection.query(query);
-                        change++;
-                    }
-
-                }
-
-                // drop foreign key
-                /*var fks = table.Value.Columns.Values.Where(c => c.ForeignKey != null).Select(c => c.ForeignKey.First().Key).ToList();
-                foreach (var fk in orgTable.Columns.Values.Where(c => c.ForeignKey != null).Select(c => c.ForeignKey.First()))
-                {
-                    if (fks.Contains(fk.Key)) continue;
-                    using (var cmd = new MySqlCommand($"ALTER TABLE `{table.Key}` DROP FOREIGN KEY `{fk.Value.Name}`;", trn.Connection, trn))
-                    {
-                        cmd.ExecuteNonQuery();
-                        change++;
-                    }
-                }*/
-
-        
-        /*
-            } else {
-                // create
-                const data = {};
-                data[tableName] = table;
-                const query = this.createQuery(data);
-                await this.connection.query(query);
-                change++;
-            }
-
-
-            // drop tables
-            for (const tableName of Object.keys(currentDb.tables).filter(t => !db.tables[t])) {
-                const query = `
-                        SET FOREIGN_KEY_CHECKS = 0;
-                        DROP TABLE \`${tableName}\`;
-                        SET FOREIGN_KEY_CHECKS = 1;
-                `;
-                await this.connection.query(query);
-                change++;
-
-            }
-
-            await this.connection.query('COMMIT');
-
-            if (change === 0) {
-                console.log('nothing is changed');
-            }
-
-        }
-
-        return true;*/
 
     }
 

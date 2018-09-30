@@ -2,6 +2,7 @@ import {Db} from './db';
 import {DbDiff} from './dbDiff';
 
 export interface DbInterface {
+    drop: (db: Db, queryOnly: boolean) => Promise<string>;
     extract: () => Promise<Db>;
     query: (db: Db) => string;
     create: (db: Db, queryOnly: boolean) => Promise<string>;

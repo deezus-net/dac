@@ -14,16 +14,16 @@ describe('dbMysql', () => {
     let db: Db;
 
     beforeAll(async () => {
-        const hostText = await promisify(fs.readFile)('./test_data/hosts.yml', 'utf8');
+        const hostText = await promisify(fs.readFile)('./test_data/mysql/hosts.yml', 'utf8');
         const hosts = yaml.safeLoad(hostText) as {[key: string]: DbHost};
         mysql = new DbMysql(hosts['mysql']);
 
-        const dbText = await promisify(fs.readFile)('./test_data/sample.yml', 'utf8');
+        const dbText = await promisify(fs.readFile)('./test_data/mysql/db.yml', 'utf8');
         db = yamlToDb(dbText);
        
     });
     
-    it('test', async () => {
+    it.skip('test', async () => {
         await new Promise(resolve => {
             mysqlx.getSession({
                 host: 'localhost',
@@ -82,6 +82,12 @@ describe('dbMysql', () => {
     it.skip ('diff', async () => {
         await mysql.connect();
         const res = await mysql.diff(db);
+        await mysql.close();
+    });
+
+    it ('drop', async () => {
+        await mysql.connect();
+        const res = await mysql.drop(db, false);
         await mysql.close();
     });
 

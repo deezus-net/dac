@@ -5,6 +5,7 @@ export class DbType {
 }
 
 export class Command {
+    public static drop = 'drop';
     public static query = 'query';
     public static extract = 'extract';
     public static create = 'create';
