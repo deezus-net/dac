@@ -208,6 +208,7 @@ export const distinct = (array1: string[], array2: string[]) => {
  * @param {Db} db
  */
 export const trimDbProperties = (db: Db) => {
+
     for (const tableName of Object.keys(db.tables)) {
         const table = db.tables[tableName];
         

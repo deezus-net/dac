@@ -68,7 +68,7 @@ export class DbPostgres implements DbInterface {
     public async drop(db: Db, queryOnly: boolean) {
         const queries = [];
         for (const tableName of Object.keys(db.tables)){
-            queries.push(`DROP TABLE IF EXISTS "${tableName}";`);
+            queries.push(`DROP TABLE IF EXISTS "${tableName}" CASCADE;`);
         }
         const execQuery = queries.join('\n');
 
@@ -420,12 +420,10 @@ export class DbPostgres implements DbInterface {
                 // foreign key
                 const orgFkName = Object.keys(orgColumn.fk || {});
                 const newFkName = Object.keys(newColumn.fk || {});
-
                 for (const fkName of distinct(orgFkName, newFkName)) {
                     if (orgFkName.indexOf(fkName) === -1) {
                         const fk = newColumn.fk[fkName];
                         createFkQuery.push(DbPostgres.createAlterForeignKey(fkName, tableName, columnName, fk.table, fk.column, fk.update, fk.delete));
-
                         continue;
                     }
 

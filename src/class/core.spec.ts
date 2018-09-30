@@ -3,15 +3,19 @@ import {Command} from './define';
 import {accessSync} from 'fs';
 import {CommanderStatic} from 'commander';
 
-const dbTypes = ['postgres', 'mysql', 'mssql' ];
+const dbTypes = [
+  //  'postgres', 
+  //  'mysql',
+    'mssql'
+];
 
 dbTypes.forEach(dbType => {
     describe(dbType, () => {
-        const getCore = async () => {
+        const getCore = async (dbFile = 'db') => {
             const core = new Core();
             await core.setHosts({
                 hosts: `./test_data/${dbType}/hosts.yml`,
-                input: `./test_data/${dbType}/db.yml`,
+                input: `./test_data/${dbType}/${dbFile}.yml`,
                 outDir: `./test_data/${dbType}`
             });
             return core;
@@ -34,15 +38,15 @@ dbTypes.forEach(dbType => {
             expect(res).toBeTruthy();
         });
 
-        it('updte', async () => {
-            const core = await getCore();
-            const res = await core.execute(Command.update);
-            expect(res).toBeTruthy();
-        });
-
         it('recreate', async () => {
             const core = await getCore();
             const res = await core.execute(Command.reCreate);
+            expect(res).toBeTruthy();
+        });
+
+        it('updte', async () => {
+            const core = await getCore('update');
+            const res = await core.execute(Command.update);
             expect(res).toBeTruthy();
         });
 

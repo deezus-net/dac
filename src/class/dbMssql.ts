@@ -63,11 +63,34 @@ export class DbMssql implements DbInterface {
      */
     public async drop(db: Db, queryOnly: boolean) {
         const queries = [];
+        const tableNames = Object.keys(db.tables);
+
+        const query = `
+                SELECT
+                    t.name AS table_name,
+                    fk.name AS fk_name
+                FROM
+                    sys.tables AS t
+                LEFT OUTER JOIN
+                    sys.foreign_keys AS fk
+                ON
+                    fk.parent_object_id = t.object_id
+                `;
+        for (const row of await this.exec(query)) {
+
+            if ( tableNames.indexOf(row['table_name']) !== -1 && row['fk_name']){
+                queries.push(`ALTER TABLE`);
+                queries.push(`    [${row['table_name']}]`);
+                queries.push(`DROP CONSTRAINT`);
+                queries.push(`    [${row['fk_name']}];`);
+            }
+        }
+        
+        
         for (const tableName of Object.keys(db.tables)){
             queries.push(`DROP TABLE IF EXISTS [${tableName}];`);
         }
         const execQuery = queries.join('\n');
-
         if (!queryOnly) {
             await this.beginTransaction();
             await this.exec(execQuery);
@@ -400,7 +423,6 @@ export class DbMssql implements DbInterface {
                         update: row['onupdate'],
                         delete: row['ondelete']
                     };
-
                 }
             }
         }
@@ -560,7 +582,7 @@ export class DbMssql implements DbInterface {
         const execQuery = dropFkQuery.join('\n') + '\n' + query.join('\n') + '\n' + createFkQuery.join('\n');
 
         if (query.length > 0 || createFkQuery.length > 0 || dropFkQuery.length > 0) {
-            if (queryOnly) {
+            if (!queryOnly) {
                 await this.beginTransaction();
                 await this.exec(execQuery);
                 await this.commit();

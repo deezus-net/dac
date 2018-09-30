@@ -71,7 +71,9 @@ export class DbMysql implements DbInterface {
 
         if (!queryOnly) {
             await this.connection.query('BEGIN;');
+            await this.connection.query(`SET FOREIGN_KEY_CHECKS = 0;`);
             await this.connection.query(execQuery);
+            await this.connection.query(`SET FOREIGN_KEY_CHECKS = 1;`);
             await this.connection.query('COMMIT;');
         }
         return execQuery;
