@@ -244,7 +244,7 @@ export class DbPostgres implements DbInterface {
             for (const row of checkData.rows) {
                 const consrc = (row['consrc'].match(/\((.*)\)/) || [])[1] || row['consrc'];
 
-                for (const colName in Object.keys(table.columns)) {
+                for (const colName of Object.keys(table.columns)) {
                     if (consrc.indexOf(colName) !== -1) {
                         table.columns[colName].check = consrc;
                     }
@@ -376,7 +376,7 @@ export class DbPostgres implements DbInterface {
                 query.push(`    "${tableName}"`);
                 query.push(`ADD COLUMN "${columnName}" ${type}${(column.notNull ? ' NOT NULL' : '')};`);
 
-                for (const fkName of Object.keys(column.fk)) {
+                for (const fkName of Object.keys(column.fk || {})) {
                     const fk = column.fk[fkName];
                     createFkQuery.push(DbPostgres.createAlterForeignKey(fkName, tableName, columnName, fk.table, fk.column, fk.update, fk.delete));
                 }
@@ -386,7 +386,6 @@ export class DbPostgres implements DbInterface {
             for (const columnName of Object.keys(table.modifiedColumns)) {
                 const [orgColumn, newColumn] = table.modifiedColumns[columnName];
 
-                console.log(orgColumn.type + ',' + newColumn.type + '/' + orgColumn.length + ',' + newColumn.length)
                 // change type
                 if (orgColumn.type !== newColumn.type || orgColumn.length !== newColumn.length) {
                     let type = newColumn.id ? 'serial' : newColumn.type;

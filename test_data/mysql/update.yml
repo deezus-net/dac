@@ -21,18 +21,57 @@ tables:
       price:
         type: int
         notNull: true
+        default: 150
+        check: "price >= 150"
       category_id:
         type: int
         notNull: true
-        fk:
-          fk_item_categories:
-            table: item_categories
-            column: id
+      comment:
+        type: varchar
+        length: 200
     indexes:
       ix_items_name:
         columns:
           name: asc
           price: asc
-      ix_items_price:
+      ix_comment:
         columns:
-          price: asc
+          comment: asc
+  customers:
+    columns:
+      id:
+        type: varchar
+        length: 30
+        pk: true
+      name:
+        type: varchar
+        length: 100
+        notNull: true
+      address:
+        type: varchar
+        length: 200
+        notNull: true
+    indexes:
+      ix_name:
+        columns: 
+          name: asc
+          address: asc
+        unique: true
+  sales:
+    columns:
+      item_id:
+        type: int
+        pk: true
+        fk:
+          fk_item_id:
+            table: items
+            column: id
+      customer_id:
+        type: varchar
+        length: 30
+        pk: true
+        fk:
+          fk_customer_id:
+            table: customers
+            column: id
+            delete: CASCADE

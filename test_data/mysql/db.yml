@@ -7,6 +7,9 @@ tables:
         type: varchar
         length: 100
         notNull: true
+      created:
+        type: timestamp
+        default: NOW()
     indexes:
       ix_item_categories_name:
         columns:
@@ -21,14 +24,59 @@ tables:
       price:
         type: int
         notNull: true
+        default: 100
+        check: "price >= 100"
       category_id:
         type: int
         notNull: true
+        fk:
+          fk_item_categories:
+            table: item_categories
+            column: id
     indexes:
       ix_items_name:
         columns:
           name: asc
-          price: asc
       ix_items_price:
         columns:
           price: asc
+  customers:
+    columns:
+      id:
+        type: varchar
+        length: 30
+        pk: true
+      name:
+        type: varchar
+        length: 100
+        notNull: true
+      address:
+        type: text
+    indexes:
+      ix_name:
+        columns: 
+          name: asc
+  stores:
+    columns:
+      id:
+        id: true
+      name:
+        type: varchar
+        length: 100
+  sales:
+    columns:
+      item_id:
+        type: int
+        pk: true
+        fk:
+          fk_item_id:
+            table: items
+            column: id
+      customer_id:
+        type: varchar
+        length: 30
+        pk: true
+        fk:
+          fk_customer_id:
+            table: customers
+            column: id

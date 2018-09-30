@@ -302,7 +302,6 @@ export class DbMysql implements DbInterface {
                 }
             }
         }
-
         return query.join('\n');
 
     }
@@ -375,7 +374,7 @@ export class DbMysql implements DbInterface {
                 query.push(`    \`${tableName}\``);
                 query.push(`ADD COLUMN \`${columnName}\` ${type}${ (column.id ? ' AUTO_INCREMENT' : '')}${notNull}${def};`);
 
-                for (const fkName of Object.keys(column.fk)) {
+                for (const fkName of Object.keys(column.fk || {})) {
                     const fk = column.fk[fkName];
                     createFkQuery.push(DbMysql.createAlterForeignKey(fkName, tableName, columnName, fk.table, fk.column, fk.update, fk.delete));
                 }
@@ -473,7 +472,6 @@ export class DbMysql implements DbInterface {
                 query.push(`DROP INDEX \`${indexName}\`;`);
             }
         }
-
         // drop tables
         for (const tableName of diff.deletedTableNames) {
             query.push(`SET FOREIGN_KEY_CHECKS = 0;`);

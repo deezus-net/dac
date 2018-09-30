@@ -675,7 +675,7 @@ export class DbMssql implements DbInterface {
             query.push(');');
 
             let num = 1;
-            for (const indexName of Object.keys(table.indexes)) {
+            for (const indexName of Object.keys(table.indexes || {})) {
                 const index = table.indexes[indexName];
                 const name = indexName ? indexName : `INDEX_${tableName}_${num++}`;
                 query.push(`CREATE ${(index.unique ? 'UNIQUE ' : '')}INDEX [${name}] ON [dbo].[${tableName}](`);

@@ -4,8 +4,8 @@ import {accessSync} from 'fs';
 import {CommanderStatic} from 'commander';
 
 const dbTypes = [
-  //  'postgres', 
-  //  'mysql',
+    'postgres', 
+    'mysql',
     'mssql'
 ];
 
