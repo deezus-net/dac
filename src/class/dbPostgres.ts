@@ -243,7 +243,6 @@ export class DbPostgres implements DbInterface {
             const checkData = await this.client.query(query, [tableName]);
             for (const row of checkData.rows) {
                 const consrc = (row['consrc'].match(/\((.*)\)/) || [])[1] || row['consrc'];
-
                 for (const colName of Object.keys(table.columns)) {
                     if (consrc.indexOf(colName) !== -1) {
                         table.columns[colName].check = consrc;
@@ -411,6 +410,13 @@ export class DbPostgres implements DbInterface {
                 }
 
                 if (orgColumn.check !== newColumn.check) {
+                    // drop old check
+                    query.push(`ALTER TABLE`);
+                    query.push(`    "${tableName}"`);
+                    query.push(`DROP CONSTRAINT`);
+                    query.push(`    "${tableName}_${columnName}_check";`);
+                    
+                    // add new check
                     query.push(`ALTER TABLE`);
                     query.push(`    "${tableName}"`);
                     query.push(`ADD CHECK(${newColumn.check});`);
