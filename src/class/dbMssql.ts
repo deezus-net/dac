@@ -123,7 +123,7 @@ export class DbMssql implements DbInterface {
      */
     public async reCreate(db: Db, queryOnly: boolean) {
         const createQuery = this.createQuery(db.tables);
-        const queries = [];
+        const queries: string[] = [`USE [${this.dbHost.database}];`];
         
         // get table and foreign key list
         const tables: string[] = [];
@@ -142,7 +142,9 @@ export class DbMssql implements DbInterface {
                 `;
         for (const row of await this.exec(query)) {
 
-            tables.push(row['table_name']);
+            if (tables.indexOf(row['table_name']) === -1) {
+                tables.push(row['table_name']);
+            }
             if (row['fk_name']) {
                 foreignKeys[row['fk_name']] = row['table_name'];
             }
@@ -151,9 +153,9 @@ export class DbMssql implements DbInterface {
         // drop exist foreign keys
         for (const fkName of Object.keys(foreignKeys)) {
             queries.push(`ALTER TABLE`);
-            queries.push(`    [${fkName}]`);
+            queries.push(`    [${foreignKeys[fkName]}]`);
             queries.push(`DROP CONSTRAINT`);
-            queries.push(`    [${foreignKeys[fkName]}];`);
+            queries.push(`    [${fkName}];`);
         }
 
         // drop exist tables
@@ -165,7 +167,6 @@ export class DbMssql implements DbInterface {
         queries.push(this.createQuery(db.tables));
         
         const execQuery = queries.join('\n');
-        
         if (!queryOnly) {
             await this.beginTransaction();
             await this.exec(execQuery);

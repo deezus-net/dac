@@ -1,7 +1,5 @@
 import {Core} from './core';
 import {Command} from './define';
-import {accessSync} from 'fs';
-import {CommanderStatic} from 'commander';
 
 const dbTypes = [
     'postgres', 
