@@ -475,10 +475,13 @@ export class DbMssql implements DbInterface {
                 if (column.length > 0) {
                     type += `(${column.length})`;
                 }
+                const check = column.check ? ` CHECK(${column.check}) ` : '';
+                const def = column.default ? ` DEFAULT ${column.default} ` : '';
+                
                 query.push(`ALTER TABLE`);
                 query.push(`    [${tableName}]`);
                 query.push(`ADD`);
-                query.push(`    [${columnName}] ${type}${(column.id ? ' IDENTITY' : '')}${column.notNull ? ' NOT NULL' : ''};`);
+                query.push(`    [${columnName}] ${type}${(column.id ? ' IDENTITY' : '')}${column.notNull ? ' NOT NULL' : ''}${def}${check};`);
 
                 for (const fkName of Object.keys(column.fk || {})) {
                     const fk = column.fk[fkName];
