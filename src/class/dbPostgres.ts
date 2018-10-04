@@ -371,9 +371,12 @@ export class DbPostgres implements DbInterface {
                 if (column.length > 0) {
                     type += `(${column.length})`;
                 }
+                const check = column.check ? ` CHECK(${column.check}) ` : '';
+                const def = column.default ? ` DEFAULT ${column.default} ` : '';
+                
                 query.push(`ALTER TABLE`);
                 query.push(`    "${tableName}"`);
-                query.push(`ADD COLUMN "${columnName}" ${type}${(column.notNull ? ' NOT NULL' : '')};`);
+                query.push(`ADD COLUMN "${columnName}" ${type}${(column.notNull ? ' NOT NULL' : '')}${check}${def};`);
 
                 for (const fkName of Object.keys(column.fk || {})) {
                     const fk = column.fk[fkName];

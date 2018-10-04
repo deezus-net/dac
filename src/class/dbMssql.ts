@@ -78,16 +78,16 @@ export class DbMssql implements DbInterface {
                 `;
         for (const row of await this.exec(query)) {
 
-            if ( tableNames.indexOf(row['table_name']) !== -1 && row['fk_name']){
+            if (tableNames.indexOf(row['table_name']) !== -1 && row['fk_name']) {
                 queries.push(`ALTER TABLE`);
                 queries.push(`    [${row['table_name']}]`);
                 queries.push(`DROP CONSTRAINT`);
                 queries.push(`    [${row['fk_name']}];`);
             }
         }
-        
-        
-        for (const tableName of Object.keys(db.tables)){
+
+
+        for (const tableName of Object.keys(db.tables)) {
             queries.push(`DROP TABLE IF EXISTS [${tableName}];`);
         }
         const execQuery = queries.join('\n');
@@ -346,7 +346,8 @@ export class DbMssql implements DbInterface {
                 SELECT
                     t.name AS table_name, 
                     col.name AS column_name,
-                    d.definition 
+                    d.definition,
+                    d.name
                 FROM
                     sys.default_constraints AS d 
                 INNER JOIN
@@ -369,6 +370,7 @@ export class DbMssql implements DbInterface {
 
                 if (tables[tableName].columns[columnName]) {
                     tables[tableName].columns[columnName].default = definition;
+                    tables[tableName].columns[columnName].defaultName = row['name'];
                 }
             }
 
@@ -455,6 +457,8 @@ export class DbMssql implements DbInterface {
         const createFkQuery = [];
         const dropFkQuery = [];
         
+        const droppedIndexNames = [];
+        
         // add tables
         if (Object.keys(diff.addedTables).length > 0) {
             query.push(this.createQuery(diff.addedTables));
@@ -488,8 +492,12 @@ export class DbMssql implements DbInterface {
 
                 // if change execute alter
                 for (const indexName of Object.keys(orgTable.indexes || {}).filter(i => orgTable.indexes[i].columns[columnName])) {
-                    query.push(`DROP INDEX`);
-                    query.push(`    [${indexName}] ON [${tableName}];`);
+                    if (droppedIndexNames.indexOf(indexName) === -1) {
+                        query.push(`DROP INDEX`);
+                        query.push(`    [${indexName}] ON [${tableName}];`);
+
+                        droppedIndexNames.push(indexName);
+                    }
                 }
 
                 let type = newColumn.id ? 'int' : newColumn.type;
@@ -539,6 +547,12 @@ export class DbMssql implements DbInterface {
 
             // drop columns
             for (const columnName of table.deletedColumnName) {
+                if (diff.currentDb.tables[tableName].columns[columnName].defaultName) {
+                    query.push(`ALTER TABLE`);
+                    query.push(`    [${tableName}]`);
+                    query.push(`DROP CONSTRAINT [${diff.currentDb.tables[tableName].columns[columnName].defaultName}];`);
+                }
+
                 query.push(`ALTER TABLE`);
                 query.push(`    [${tableName}]`);
                 query.push(`DROP COLUMN [${columnName}];`);
@@ -559,8 +573,10 @@ export class DbMssql implements DbInterface {
             for (const indexName of Object.keys(table.modifiedIndexes)) {
                 const [, index] = table.modifiedIndexes[indexName];
 
-                query.push(`DROP INDEX`);
-                query.push(`    [${tableName}].[${indexName}];`);
+                if (droppedIndexNames.indexOf(indexName) === -1) {
+                    query.push(`DROP INDEX`);
+                    query.push(`    [${tableName}].[${indexName}];`);
+                }
                 query.push(`CREATE`);
                 query.push(`    ${index.unique ? 'UNIQUE ' : ''}INDEX [${indexName}]`);
                 query.push(`ON`);
@@ -569,8 +585,10 @@ export class DbMssql implements DbInterface {
 
             // drop index
             for (const indexName of table.deletedIndexNames) {
-                query.push(`DROP INDEX`);
-                query.push(`    [${tableName}].[${indexName}];`);
+                if (droppedIndexNames.indexOf(indexName) === -1) {
+                    query.push(`DROP INDEX`);
+                    query.push(`    [${tableName}].[${indexName}];`);
+                }
             }
 
         }
@@ -579,15 +597,16 @@ export class DbMssql implements DbInterface {
         for (const tableName of diff.deletedTableNames) {
             query.push(`DROP TABLE [dbo].[${tableName}];`);
         }
-
+        
         const execQuery = dropFkQuery.join('\n') + '\n' + query.join('\n') + '\n' + createFkQuery.join('\n');
-
+        console.log(execQuery);
         if (query.length > 0 || createFkQuery.length > 0 || dropFkQuery.length > 0) {
             if (!queryOnly) {
                 await this.beginTransaction();
                 await this.exec(execQuery);
                 await this.commit();
             }
+            
             return execQuery;
 
         } else {

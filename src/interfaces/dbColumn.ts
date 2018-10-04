@@ -11,5 +11,6 @@ export interface DbColumn {
     check?: string;
     fk?: { [key: string]: DbForeignKey };
     default?: string;
+    defaultName?: string;
     comment?: string;
 }
