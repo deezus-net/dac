@@ -507,12 +507,44 @@ export class DbMssql implements DbInterface {
                 if (newColumn.length > 0) {
                     type += `(${newColumn.length})`;
                 }
+                const check = newColumn.check ? ` CHECK(${newColumn.check}) ` : '';
+                const def = newColumn.default ? ` DEFAULT ${newColumn.default} ` : '';
 
                 query.push(`ALTER TABLE`);
                 query.push(`    [${tableName}]`);
                 query.push(`ALTER COLUMN`);
                 query.push(`    [${columnName}] ${type}${newColumn.id ? ' IDENTITY' : ''}${newColumn.notNull ? ' NOT NULL' : ''};`);
 
+                if (orgColumn.default !== newColumn.default) {
+                    if (orgColumn.defaultName) {
+                        query.push(`ALTER TABLE`);
+                        query.push(`    [${tableName}]`);
+                        query.push(`DROP CONSTRAINT`);
+                        query.push(`    [${orgColumn.defaultName}];`);
+                    }
+
+                    if (newColumn.default) {
+                        query.push(`ALTER TABLE`);
+                        query.push(`    [${tableName}]`);
+                        query.push(`ADD DEFAULT ${newColumn.default} FOR [${columnName}];`);
+                    }
+                }
+
+                /*if (orgColumn.check !== newColumn.check) {
+                    // drop old check
+                    query.push(`ALTER TABLE`);
+                    query.push(`    "${tableName}"`);
+                    query.push(`DROP CONSTRAINT`);
+                    query.push(`    "${tableName}_${columnName}_check";`);
+
+                    // add new check
+                    if (newColumn.check) {
+                        query.push(`ALTER TABLE`);
+                        query.push(`    "${tableName}"`);
+                        query.push(`ADD CHECK(${newColumn.check});`);
+                    }
+                }*/
+                
                 // foreign key
                 const orgFkName = Object.keys(orgColumn.fk || {});
                 const newFkName = Object.keys(newColumn.fk || {});
