@@ -38,4 +38,28 @@ jobs:
           key: node_modules-{{ checksum "package.json" }}
           paths:
             - node_modules
-      
+      - persist_to_workspace:
+          root: .
+          paths:
+          - '*'
+          - '.*'
+            
+  deploy:
+    - attach_workspace:
+        at: .
+    - run:
+        name: ls
+        command: ls
+  
+workflows:
+  build:
+    jobs:
+      - build
+  deploy:
+    requires:
+      - build
+    jobs:
+      - deploy
+    #filters:
+    #  branches:
+    #    only: master
