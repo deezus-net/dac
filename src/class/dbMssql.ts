@@ -315,7 +315,8 @@ export class DbMssql implements DbInterface {
                 SELECT
                     t.name AS table_name, 
                     col.name AS column_name,
-                    ch.definition 
+                    ch.definition,
+                    ch.name
                 FROM
                     sys.check_constraints AS ch 
                 INNER JOIN
@@ -338,6 +339,7 @@ export class DbMssql implements DbInterface {
 
                 if (tables[tableName].columns[columnName]) {
                     tables[tableName].columns[columnName].check = definition;
+                    tables[tableName].columns[columnName].checkName = row['name'];
                 }
             }
 
@@ -530,20 +532,21 @@ export class DbMssql implements DbInterface {
                     }
                 }
 
-                /*if (orgColumn.check !== newColumn.check) {
+                if (orgColumn.check !== newColumn.check) {
                     // drop old check
-                    query.push(`ALTER TABLE`);
-                    query.push(`    "${tableName}"`);
-                    query.push(`DROP CONSTRAINT`);
-                    query.push(`    "${tableName}_${columnName}_check";`);
-
+                    if(orgColumn.checkName) {
+                        query.push(`ALTER TABLE`);
+                        query.push(`    [${tableName}]`);
+                        query.push(`DROP CONSTRAINT`);
+                        query.push(`    [${orgColumn.checkName}];`);
+                    }
                     // add new check
                     if (newColumn.check) {
                         query.push(`ALTER TABLE`);
-                        query.push(`    "${tableName}"`);
+                        query.push(`    [${tableName}]`);
                         query.push(`ADD CHECK(${newColumn.check});`);
                     }
-                }*/
+                }
                 
                 // foreign key
                 const orgFkName = Object.keys(orgColumn.fk || {});

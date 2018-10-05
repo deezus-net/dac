@@ -9,6 +9,7 @@ export interface DbColumn {
     id?: boolean;
     notNull?: boolean;
     check?: string;
+    checkName?: string;
     fk?: { [key: string]: DbForeignKey };
     default?: string;
     defaultName?: string;
