@@ -45,21 +45,23 @@ jobs:
           - '.*'
             
   deploy:
-    - attach_workspace:
-        at: .
-    - run:
-        name: ls
-        command: ls
+    docker:
+      - image: circleci/node
+    steps:
+      - attach_workspace:
+          at: .
+      - run:
+          name: ls
+          command: ls
   
 workflows:
+  version: 2
   build:
     jobs:
       - build
-  deploy:
-    requires:
-      - build
-    jobs:
-      - deploy
-    #filters:
-    #  branches:
-    #    only: master
+      - deploy:
+          requires:
+            - build
+          filters:
+            branches:
+              only: develop
