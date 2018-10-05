@@ -407,9 +407,15 @@ export class DbPostgres implements DbInterface {
                 }
 
                 if (orgColumn.default !== newColumn.default) {
-                    query.push(`ALTER TABLE`);
-                    query.push(`    "${tableName}"`);
-                    query.push(`ALTER COLUMN "${columnName}" SET DEFAULT ${newColumn.default};`);
+                    if (newColumn.default) {
+                        query.push(`ALTER TABLE`);
+                        query.push(`    "${tableName}"`);
+                        query.push(`ALTER COLUMN "${columnName}" SET DEFAULT ${newColumn.default};`);
+                    } else {
+                        query.push(`ALTER TABLE`);
+                        query.push(`    "${tableName}"`);
+                        query.push(`ALTER COLUMN "${columnName}" DROP DEFAULT`);
+                    }
                 }
 
                 if (orgColumn.check !== newColumn.check) {
@@ -420,9 +426,11 @@ export class DbPostgres implements DbInterface {
                     query.push(`    "${tableName}_${columnName}_check";`);
                     
                     // add new check
-                    query.push(`ALTER TABLE`);
-                    query.push(`    "${tableName}"`);
-                    query.push(`ADD CHECK(${newColumn.check});`);
+                    if(newColumn.check) {
+                        query.push(`ALTER TABLE`);
+                        query.push(`    "${tableName}"`);
+                        query.push(`ADD CHECK(${newColumn.check});`);
+                    }
                 }
 
                 // foreign key
@@ -500,7 +508,7 @@ export class DbPostgres implements DbInterface {
         }
 
         const execQuery = dropFkQuery.join('\n') + '\n' + query.join('\n') + '\n' +  createFkQuery.join('\n');
-        
+        console.log(execQuery)
         if (query.length > 0 || createFkQuery.length > 0 || dropFkQuery.length > 0) {
             if (!queryOnly) {
                 await this.client.query('BEGIN');
