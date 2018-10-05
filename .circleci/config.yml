@@ -50,6 +50,7 @@ jobs:
     steps:
       - attach_workspace:
           at: ~/repo
+      - working_dir: ~/repo
       - run:
           name: ls
           command: ls
