@@ -49,7 +49,7 @@ jobs:
       - image: circleci/node
     steps:
       - attach_workspace:
-          at: .
+          at: ~/repo
       - run:
           name: ls
           command: ls
