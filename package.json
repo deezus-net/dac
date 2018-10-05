@@ -1,10 +1,11 @@
 {
   "name": "@deezus/dac",
-  "version": "0.0.2",
+  "version": "0.0.3",
   "main": "index.js",
   "repository": "https://github.com/deezus-net/dac.git",
-  "author": "deezus-net <info@deezus.net>",
+  "author": "deezus <info@deezus.net>",
   "license": "MIT",
+  "private" : false,
   "scripts": {
     "watch": "tsc --watch",
     "build": "tsc",
