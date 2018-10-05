@@ -229,7 +229,8 @@ export class DbPostgres implements DbInterface {
             // get check list
             query = `
                 SELECT
-                    co.consrc
+                    co.consrc,
+                    co.conname
                 FROM
                     pg_constraint AS co 
                 INNER JOIN
@@ -246,6 +247,7 @@ export class DbPostgres implements DbInterface {
                 for (const colName of Object.keys(table.columns)) {
                     if (consrc.indexOf(colName) !== -1) {
                         table.columns[colName].check = consrc;
+                        table.columns[colName].checkName = row['conname'];
                     }
                 }
             }
@@ -420,13 +422,14 @@ export class DbPostgres implements DbInterface {
 
                 if (orgColumn.check !== newColumn.check) {
                     // drop old check
-                    query.push(`ALTER TABLE`);
-                    query.push(`    "${tableName}"`);
-                    query.push(`DROP CONSTRAINT`);
-                    query.push(`    "${tableName}_${columnName}_check";`);
-                    
+                    if (orgColumn.defaultName) {
+                        query.push(`ALTER TABLE`);
+                        query.push(`    "${tableName}"`);
+                        query.push(`DROP CONSTRAINT`);
+                        query.push(`    "${orgColumn.defaultName}";`);
+                    }
                     // add new check
-                    if(newColumn.check) {
+                    if (newColumn.check) {
                         query.push(`ALTER TABLE`);
                         query.push(`    "${tableName}"`);
                         query.push(`ADD CHECK(${newColumn.check});`);
