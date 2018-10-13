@@ -2,9 +2,9 @@ import {Core} from './core';
 import {Command} from './define';
 
 const dbTypes = [
-    'postgres', 
+  //  'postgres', 
     'mysql',
-    'mssql'
+  //  'mssql'
 ];
 
 dbTypes.forEach(dbType => {
@@ -14,7 +14,7 @@ dbTypes.forEach(dbType => {
             await core.setHosts({
                 hosts: `./test_data/${dbType}/hosts.yml`,
                 input: `./test_data/${dbType}/${dbFile}.yml`,
-                outDir: `./test_data/${dbType}`
+                output: `./test_data/${dbType}`
             });
             return core;
         };
@@ -24,6 +24,16 @@ dbTypes.forEach(dbType => {
 
         });
 
+        it.only('trim', async () => {
+            const core = new Core();
+            await core.setHosts({
+                input: `./test_data/${dbType}/db.yml`,
+                output: `./test_data/${dbType}/db_trim.yml`
+            });
+            const res = await core.execute(Command.trim);
+            expect(res).toBeTruthy();
+        });
+        
         it('drop', async () => {
             const core = await getCore();
             const res = await core.execute(Command.drop);

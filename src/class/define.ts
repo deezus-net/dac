@@ -12,6 +12,7 @@ export class Command {
     public static reCreate = 'recreate';
     public static update = 'update';
     public static diff = 'diff';
+    public static trim = 'trim';
 }
 
 export class ConsoleColor {

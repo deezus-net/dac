@@ -15,8 +15,8 @@ import ObjectContaining = jasmine.ObjectContaining;
 export class Core {
     private dbHosts: DbHost[] = [];
     private db: Db;
-    private outDir: string;
-    private queryOnly;
+    private args: Args = {};
+    
     /**
      * 
      * @param {Args} args
@@ -58,8 +58,8 @@ export class Core {
             this.db = yamlToDb(dbText);
             trimDbProperties(this.db);
         }
-        this.outDir = args.outDir;
-        this.queryOnly = args.query;
+        this.args = args;
+
     }
 
     /**
@@ -69,48 +69,59 @@ export class Core {
      */
     public async execute(command: string) {
         let res = true;
-        for (const dbHost of this.dbHosts) {
-            let db: DbInterface;
-            switch (dbHost.type) {
-                case DbType.mysql:
-                    db = new DbMysql(dbHost);
-                    break;
-                case DbType.postgres:
-                    db = new DbPostgres(dbHost);
-                    break;
-                case DbType.msSql:
-                    db = new DbMssql(dbHost);
-                    break;
-            }
-            await db.connect();
-            try {
-                switch (command) {
-                    case Command.drop:
-                        await this.drop(db);
-                        break;
-                    case Command.extract:
-                        await this.extract(db, dbHost.name);
-                        break;
-                    case Command.create:
-                        await this.create(db);
-                        break;
-                    case Command.reCreate:
-                        await this.reCreate(db);
-                        break;
-                    case Command.update:
-                        await this.update(db);
-                        break;
-                    case Command.diff:
-                        await this.diff(db);
-                        break;
+
+        switch (command) {
+            case Command.trim:
+                await this.trim();
+                break;
+            default:
+                for (const dbHost of this.dbHosts) {
+                    let db: DbInterface;
+                    switch (dbHost.type) {
+                        case DbType.mysql:
+                            db = new DbMysql(dbHost);
+                            break;
+                        case DbType.postgres:
+                            db = new DbPostgres(dbHost);
+                            break;
+                        case DbType.msSql:
+                            db = new DbMssql(dbHost);
+                            break;
+                    }
+                    await db.connect();
+                    try {
+                        switch (command) {
+                            case Command.drop:
+                                await this.drop(db);
+                                break;
+                            case Command.extract:
+                                await this.extract(db, dbHost.name);
+                                break;
+                            case Command.create:
+                                await this.create(db);
+                                break;
+                            case Command.reCreate:
+                                await this.reCreate(db);
+                                break;
+                            case Command.update:
+                                await this.update(db);
+                                break;
+                            case Command.diff:
+                                await this.diff(db);
+                                break;
+
+                        }
+                    } catch (e) {
+                        console.log(e);
+                        res = false;
+                    }
+                    await db.close();
+
                 }
-            } catch (e) {
-                console.log(e);
-                res = false;
-            }
-            await db.close();
+                break;
 
         }
+
         return res;
     }
 
@@ -120,8 +131,8 @@ export class Core {
      * @returns {Promise<void>}
      */
     private async drop(db: DbInterface) {
-        const query = await db.drop(this.db, this.queryOnly);
-        if (this.queryOnly){
+        const query = await db.drop(this.db, this.args.query);
+        if (this.args.query) {
             console.log(query);
         }
     }
@@ -135,7 +146,7 @@ export class Core {
     private async extract(db: DbInterface, name: string) {
         const data = await db.extract();
     //    trimDbProperties(data);
-        await promisify(fs.writeFile)(path.join(this.outDir, `${name}.yml`), dbToYaml(data));
+        await promisify(fs.writeFile)(path.join(this.args.output, `${name}.yml`), dbToYaml(data));
     }
 
     /**
@@ -144,10 +155,10 @@ export class Core {
      * @returns {Promise<void>}
      */
     private async create(db: DbInterface) {
-        const query = await db.create(this.db, this.queryOnly);
-        if (this.queryOnly){
+        const query = await db.create(this.db, this.args.query);
+        if (this.args.query) {
             console.log(query);
-        } 
+        }
     }
 
     /**
@@ -156,8 +167,8 @@ export class Core {
      * @returns {Promise<void>}
      */
     private async reCreate(db: DbInterface) {
-        const query = await db.reCreate(this.db, this.queryOnly);
-        if (this.queryOnly){
+        const query = await db.reCreate(this.db, this.args.query);
+        if (this.args.query) {
             console.log(query);
         }
     }
@@ -168,10 +179,10 @@ export class Core {
      * @returns {Promise<void>}
      */
     private async update(db: DbInterface) {
-        const query = await db.update(this.db, this.queryOnly);
+        const query = await db.update(this.db, this.args.query);
         if (query === null) {
             console.log('nothing is changed');
-        } else if (this.queryOnly) {
+        } else if (this.args.query) {
             console.log(query);
         }
     }
@@ -182,33 +193,33 @@ export class Core {
      * @returns {Promise<void>}
      */
     private async diff(db: DbInterface) {
-        
+
         const diff = await db.diff(this.db);
-        for (const tableName of Object.keys(diff.addedTables)){
+        for (const tableName of Object.keys(diff.addedTables)) {
             console.log(`${ConsoleColor.fgCyan}%s${ConsoleColor.reset}`, `+ ${tableName}`);
         }
 
-        for (const tableName of diff.deletedTableNames){
+        for (const tableName of diff.deletedTableNames) {
             console.log(`${ConsoleColor.fgRed}%s${ConsoleColor.reset}`, `- ${tableName}`);
         }
-        
-        for (const tableName of Object.keys(diff.modifiedTables)){
+
+        for (const tableName of Object.keys(diff.modifiedTables)) {
             console.log(`${ConsoleColor.fgGreen}%s${ConsoleColor.reset}`, `# ${tableName}`);
-            
-            for (const columnName of Object.keys(diff.modifiedTables[tableName].addedColumns)){
+
+            for (const columnName of Object.keys(diff.modifiedTables[tableName].addedColumns)) {
                 console.log(`${ConsoleColor.fgCyan}%s${ConsoleColor.reset}`, `  + ${columnName}`);
             }
 
-            for (const columnName of diff.modifiedTables[tableName].deletedColumnName){
+            for (const columnName of diff.modifiedTables[tableName].deletedColumnName) {
                 console.log(`${ConsoleColor.fgRed}%s${ConsoleColor.reset}`, `  - ${columnName}`);
             }
 
-            for (const columnName of Object.keys(diff.modifiedTables[tableName].modifiedColumns)){
+            for (const columnName of Object.keys(diff.modifiedTables[tableName].modifiedColumns)) {
                 const orgColumn = diff.currentDb.tables[tableName].columns[columnName];
                 const column = diff.newDb.tables[tableName].columns[columnName];
-                
+
                 console.log(`${ConsoleColor.fgGreen}%s${ConsoleColor.reset}`, `  # ${columnName}`);
-                
+
                 if (orgColumn.type !== column.type || orgColumn.length !== column.length) {
                     console.log(`      type: ${orgColumn.type}${orgColumn.length ? `(${orgColumn.length})` : ``} -> ${column.type}${column.length ? `(${column.length})` : ``}`);
                 }
@@ -219,33 +230,47 @@ export class Core {
                     console.log(`      not null: ${orgColumn.notNull} -> ${column.notNull}`);
                 }
             }
-            
-            for (const indexName of Object.keys(diff.modifiedTables[tableName].addedIndexes)){
+
+            for (const indexName of Object.keys(diff.modifiedTables[tableName].addedIndexes)) {
                 console.log(`${ConsoleColor.fgCyan}%s${ConsoleColor.reset}`, `  + ${indexName}`);
             }
-            for (const indexName of diff.modifiedTables[tableName].deletedIndexNames){
+            for (const indexName of diff.modifiedTables[tableName].deletedIndexNames) {
                 console.log(`${ConsoleColor.fgRed}%s${ConsoleColor.reset}`, `  - ${indexName}`);
             }
 
-            for (const indexName of Object.keys(diff.modifiedTables[tableName].modifiedIndexes)){
+            for (const indexName of Object.keys(diff.modifiedTables[tableName].modifiedIndexes)) {
                 const orgIndex = diff.currentDb.tables[tableName].indexes[indexName];
                 const index = diff.newDb.tables[tableName].indexes[indexName];
-                
+
                 console.log(`${ConsoleColor.fgGreen}%s${ConsoleColor.reset}`, `  # ${indexName}`);
-                
+
                 const orgIndexColumns = Object.keys(orgIndex.columns).map(c => `${c} ${orgIndex.columns[c]}`).join(',');
                 const indexColumns = Object.keys(index.columns).map(c => `${c} ${index.columns[c]}`).join(',');
-                if(orgIndexColumns !== indexColumns) {
+                if (orgIndexColumns !== indexColumns) {
                     console.log(`      columns: ${orgIndexColumns} -> ${indexColumns}`);
                 }
-                
+
                 if (orgIndex.unique !== index.unique) {
                     console.log(`      unique: ${orgIndex.unique} -> ${index.unique}`);
-                } 
-                
+                }
+
             }
-        } 
-        
+        }
+
+    }
+
+    /**
+     * 
+     */
+    private async trim() {
+        // sort tables by name
+        const tables = {};
+        for (const tableName of Object.keys(this.db.tables).sort()) {
+            tables[tableName] = this.db.tables[tableName];
+        }
+        this.db.tables = tables;
+
+        await promisify(fs.writeFile)(this.args.output, dbToYaml(this.db));
     }
 
 }
@@ -259,6 +284,6 @@ interface Args {
     database?: string;
     hosts?: string;
     input?: string;
-    outDir?: string;
+    output?: string;
     query?: boolean;
 }

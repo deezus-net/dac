@@ -23,13 +23,18 @@ const p = require('../package.json');
             }
         }
 
-        if (command === Command.extract && !program.outDir) {
-            console.log(`outDir is required`);
+        if (command === Command.extract && !program.output) {
+            console.log(`output is required`);
             return false;
         }
 
         if ([Command.create, Command.reCreate, Command.update, Command.diff, Command.drop ].indexOf(command) !== -1 && !program.input) {
             console.log(`input is required`);
+            return false;
+        }
+
+        if ([ Command.trim ].indexOf(command) !== -1 && (!program.input || !program.output)) {
+            console.log(`input, output are required`);
             return false;
         }
         
@@ -49,7 +54,7 @@ const p = require('../package.json');
                 password: program.password,
                 database: program.database,
                 input: program.input,
-                outDir: program.outDir,
+                output: program.output,
                 query: program.query
             });
             await core.execute(Command.extract);
@@ -67,7 +72,7 @@ const p = require('../package.json');
                 password: program.password,
                 database: program.database,
                 input: program.input,
-                outDir: program.outDir,
+                output: program.output,
                 query: program.query
             });
             await core.execute(Command.create);
@@ -85,7 +90,7 @@ const p = require('../package.json');
                 password: program.password,
                 database: program.database,
                 input: program.input,
-                outDir: program.outDir,
+                output: program.output,
                 query: program.query
             });
             await core.execute(Command.reCreate);
@@ -103,7 +108,7 @@ const p = require('../package.json');
                 password: program.password,
                 database: program.database,
                 input: program.input,
-                outDir: program.outDir,
+                output: program.output,
                 query: program.query
             });
             await core.execute(Command.update);
@@ -121,7 +126,7 @@ const p = require('../package.json');
                 password: program.password,
                 database: program.database,
                 input: program.input,
-                outDir: program.outDir,
+                output: program.output,
                 query: program.query
             });
             await core.execute(Command.diff);
@@ -139,10 +144,20 @@ const p = require('../package.json');
                 password: program.password,
                 database: program.database,
                 input: program.input,
-                outDir: program.outDir,
+                output: program.output,
                 query: program.query
             });
             await core.execute(Command.drop);
+        }
+    });
+
+    program.command(Command.trim).description('Trim yaml').action(async () => {
+        if (await argChecks(Command.trim)) {
+            await core.setHosts({
+                input: program.input,
+                output: program.output
+            });
+            await core.execute(Command.trim);
         }
     });
 
@@ -159,7 +174,7 @@ const p = require('../package.json');
         .option('-d, --database <database>', 'Database name. (required if not use hosts)')
         .option('-i, --input <input-filepath>', 'Yaml path.')
         .option('-q, --query', 'Create Query.')
-        .option('-o, --outDir <output-dir>', 'output when extracting, querying.');
+        .option('-o, --output <output>', 'Output filename when trim / Output directory when extracting, querying.');
 
     program.parse(process.argv);
 

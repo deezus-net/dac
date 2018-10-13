@@ -6,7 +6,6 @@ import {DbInterface} from '../interfaces/dbInterface';
 import {DbTable} from '../interfaces/dbTable';
 import {checkDbDiff, distinct, trimDbProperties} from './utility';
 
-
 export class DbMysql implements DbInterface {
 
     private connection: mysql.Connection;
@@ -310,6 +309,7 @@ export class DbMysql implements DbInterface {
     /**
      *
      * @param {Db} db
+     * @param queryOnly
      * @returns {Promise<boolean>}
      */
     public async reCreate(db: Db, queryOnly: boolean) {
@@ -343,6 +343,7 @@ export class DbMysql implements DbInterface {
     /**
      *
      * @param {Db} db
+     * @param queryOnly
      * @returns {Promise<void>}
      */
     public async update(db: Db, queryOnly: boolean) {
@@ -369,10 +370,11 @@ export class DbMysql implements DbInterface {
                 const notNull = column.notNull ? ' NOT NULL ' : ' NULL ';
                 const def = column.default ? ` DEFAULT ${column.default} ` : '';
                 const type = (column.id ? 'int' : column.type) + (column.length > 0 ? `(${column.length})` : '');
-
+                const check = column.check ? ` CHECK(${column.check}) ` : '';
+                
                 query.push(`ALTER TABLE`);
                 query.push(`    \`${tableName}\``);
-                query.push(`ADD COLUMN \`${columnName}\` ${type}${ (column.id ? ' AUTO_INCREMENT' : '')}${notNull}${def};`);
+                query.push(`ADD COLUMN \`${columnName}\` ${type}${ (column.id ? ' AUTO_INCREMENT' : '')}${notNull}${def}${check};`);
 
                 for (const fkName of Object.keys(column.fk || {})) {
                     const fk = column.fk[fkName];
@@ -387,6 +389,7 @@ export class DbMysql implements DbInterface {
                 const notNull = newColumn.notNull ? ' NOT NULL ' : ' NULL ';
                 const def = newColumn.default ? ` DEFAULT ${newColumn.default} ` : '';
                 const type = (newColumn.id ? 'int' : newColumn.type) + (newColumn.length > 0 ? `(${newColumn.length})` : '');
+                const check = newColumn.check ? ` CHECK(${newColumn.check}) ` : '';
 
                 query.push(`ALTER TABLE`);
                 query.push(`    \`${tableName}\``);
@@ -494,7 +497,6 @@ export class DbMysql implements DbInterface {
         }
 
     }
-
 
     private static createAlterForeignKey(
         name: string, 
