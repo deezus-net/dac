@@ -1,6 +1,6 @@
 {
   "name": "@deezus/dac",
-  "version": "0.0.3",
+  "version": "0.0.4",
   "main": "index.js",
   "repository": "https://github.com/deezus-net/dac.git",
   "author": "deezus <info@deezus.net>",
@@ -12,7 +12,7 @@
     "test": "jest core"
   },
   "bin": {
-    "dac": "index.js"
+    "dac": "dist/index.js"
   },
   "jest": {
     "moduleFileExtensions": [
