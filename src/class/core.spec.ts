@@ -2,9 +2,9 @@ import {Core} from './core';
 import {Command} from './define';
 
 const dbTypes = [
-  //  'postgres', 
+    'postgres', 
     'mysql',
-  //  'mssql'
+    'mssql'
 ];
 
 dbTypes.forEach(dbType => {
@@ -24,7 +24,7 @@ dbTypes.forEach(dbType => {
 
         });
 
-        it.only('trim', async () => {
+        it('trim', async () => {
             const core = new Core();
             await core.setHosts({
                 input: `./test_data/${dbType}/db.yml`,
