@@ -66,3 +66,5 @@ yarn.lock
 .idea
 *.sln
 dist
+*.js
+*.js.map

@@ -12,7 +12,7 @@
     "test": "jest core"
   },
   "bin": {
-    "dac": "dist/index.js"
+    "dac": "index.js"
   },
   "jest": {
     "moduleFileExtensions": [
