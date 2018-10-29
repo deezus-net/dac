@@ -5,7 +5,7 @@ import {promisify} from 'util';
 import { Core } from './class/core';
 import {Command} from './class/define';
 
-const p = require('../package.json');
+const p = require('./package.json');
 
 (async () => {
 
