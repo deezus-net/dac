@@ -81,13 +81,13 @@ export const equalColumn = (col1: DbColumn, col2: DbColumn) => {
             break;
         }
     }
-    
+
     return (col1.type || null) === (col2.type || null) && 
         (col1.length || 0) === (col2.length || 0) && 
         (col1.notNull || false) === (col2.notNull || false) && 
         (col1.id || false) === (col2.id || false) && 
-        (col1.check || null) === (col2.check || null) && 
-        (col1.default || null) === (col2.default || null) &&
+      //  (col1.check || null) === (col2.check || null) && 
+        (col1.default || null) == (col2.default || null) &&
         fkName1.toString() === fkName2.toString() &&
         !fkDiff;
 };
@@ -95,8 +95,7 @@ export const equalColumn = (col1: DbColumn, col2: DbColumn) => {
 export const equalIndex = (index1: DbIndex, index2: DbIndex) => {
     const col1 = Object.keys(index1.columns).map(c => `${c},${index1.columns[c]}`).toString();
     const col2 = Object.keys(index2.columns).map(c => `${c},${index2.columns[c]}`).toString();
-
-    return index1.unique === index2.unique && 
+    return index1.unique === index2.unique && index1.type === index2.type &&
         col1 === col2;
         
 };

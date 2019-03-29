@@ -35,6 +35,7 @@ tables:
           name: asc
           price: asc
       ix_comment:
+        type: fulltext
         columns:
           comment: asc
   customers:

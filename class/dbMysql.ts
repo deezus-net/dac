@@ -109,7 +109,7 @@ export class DbMysql implements DbInterface {
                 let type = row['Type'];
                 let length = parseInt((type.match(/\(([0-9]+)\)/) || [])[1] || 0, 10);
                 type = type.replace(/\([0-9]+\)/, '');
-                
+
                 if (type === 'int') {
                     length = 0;
                 }
@@ -195,7 +195,7 @@ export class DbMysql implements DbInterface {
                 if (fkNames.indexOf(indexName) !== -1 && checkDiff) {
                     // ignore when same name foreign key exists
                     continue;
-                } 
+                }
                 const nonUnique = parseInt(row['Non_unique'], 10);
                 const collation = row['Collation'];
                 if (!tables[tableName].indexes[indexName]) {
@@ -204,7 +204,12 @@ export class DbMysql implements DbInterface {
                         columns: {}
                     };
                 }
-                tables[tableName].indexes[indexName].columns[row['Column_name']] = collation === 'A' ? 'ASC' : 'DESC';
+                if (row['Index_type'] === 'FULLTEXT') {
+                    tables[tableName].indexes[indexName].type = 'fulltext';
+                    tables[tableName].indexes[indexName].columns[row['Column_name']] = 'ASC';
+                } else {
+                    tables[tableName].indexes[indexName].columns[row['Column_name']] = collation === 'A' ? 'ASC' : 'DESC';
+                }
             }
         }
         const db = {tables: tables};
@@ -277,7 +282,7 @@ export class DbMysql implements DbInterface {
                 }
 
                 const tmp: string[] = [];
-                tmp.push(`    ${(index.unique ? 'UNIQUE ' : '')}INDEX \`${indexName}\``);
+                tmp.push(`    ${(index.unique ? 'UNIQUE ' : '')}${((index.type || '').toLowerCase() === 'fulltext' ? 'FULLTEXT ' : '')}INDEX \`${indexName}\``);
                 tmp.push('    (');
                 tmp.push('        ' + indexColumns.map(c => `\`${c}\` ${index.columns[c]}`).join(','));
                 tmp.push(`    )`);
@@ -454,7 +459,7 @@ export class DbMysql implements DbInterface {
 
                 query.push(`ALTER TABLE`);
                 query.push(`    \`${tableName}\``);
-                query.push(`ADD ${(index.unique ? 'UNIQUE ' : '')}INDEX \`${indexName}\` (${Object.keys(index.columns).map(c => `\`${c}\` ${index.columns[c]}`)});`);
+                query.push(`ADD ${(index.unique ? 'UNIQUE ' : '')}${((index.type || '').toLowerCase() === 'fulltext' ? 'FULLTEXT ' : '')}INDEX \`${indexName}\` (${Object.keys(index.columns).map(c => `\`${c}\` ${index.columns[c]}`)});`);
             }
             
             // modify index
@@ -465,7 +470,7 @@ export class DbMysql implements DbInterface {
                 query.push(`    \`${tableName}\``);
                 query.push(`DROP INDEX`); 
                 query.push(`    \`${indexName}\`,`);
-                query.push(`ADD ${(index.unique ? 'UNIQUE ' : '')}INDEX \`${indexName}\` (${Object.keys(index.columns).map(c => `\`${c}\` ${index.columns[c]}`)});`);
+                query.push(`ADD ${(index.unique ? 'UNIQUE ' : '')}${((index.type || '').toLowerCase() === 'fulltext' ? 'FULLTEXT ' : '')}INDEX \`${indexName}\` (${Object.keys(index.columns).map(c => `\`${c}\` ${index.columns[c]}`)});`);
             }
 
             // drop index
@@ -483,7 +488,7 @@ export class DbMysql implements DbInterface {
         }
 
         const execQuery = dropFkQuery.join('\n') + '\n' + query.join('\n') + '\n' +  createFkQuery.join('\n');
-
+console.log(execQuery)
         if (query.length > 0 || createFkQuery.length > 0 || dropFkQuery.length > 0) {
             if (!queryOnly) {
                 await this.connection.query('BEGIN;');
