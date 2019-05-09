@@ -47,7 +47,7 @@ describe('DbPostgres', () => {
 
     });
     
-    it.skip ('update', async () => {
+    it ('update', async () => {
         await pg.connect();
         const res = await pg.update(db, false);
         await pg.close();
@@ -60,7 +60,7 @@ describe('DbPostgres', () => {
         await pg.close();
     });
 
-    it ('drop', async () => {
+    it.skip ('drop', async () => {
         await pg.connect();
         const res = await pg.drop(db, false);
         console.log(res);

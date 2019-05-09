@@ -488,7 +488,6 @@ export class DbMysql implements DbInterface {
         }
 
         const execQuery = dropFkQuery.join('\n') + '\n' + query.join('\n') + '\n' +  createFkQuery.join('\n');
-console.log(execQuery)
         if (query.length > 0 || createFkQuery.length > 0 || dropFkQuery.length > 0) {
             if (!queryOnly) {
                 await this.connection.query('BEGIN;');
