@@ -349,9 +349,10 @@ export class DbMysql implements DbInterface {
      *
      * @param {Db} db
      * @param queryOnly
+     * @param dropTable
      * @returns {Promise<void>}
      */
-    public async update(db: Db, queryOnly: boolean) {
+    public async update(db: Db, queryOnly: boolean, dropTable = false) {
         const diff = await this.diff(db);
         const orgDb = diff.currentDb;
         const query = [];
@@ -481,13 +482,16 @@ export class DbMysql implements DbInterface {
             }
         }
         // drop tables
-        for (const tableName of diff.deletedTableNames) {
-            query.push(`SET FOREIGN_KEY_CHECKS = 0;`);
-            query.push(`DROP TABLE \`${tableName}\`;`);
-            query.push(`SET FOREIGN_KEY_CHECKS = 1;`);
+        if(dropTable) {
+            for (const tableName of diff.deletedTableNames) {
+                query.push(`SET FOREIGN_KEY_CHECKS = 0;`);
+                query.push(`DROP TABLE \`${tableName}\`;`);
+                query.push(`SET FOREIGN_KEY_CHECKS = 1;`);
+            }
         }
 
         const execQuery = dropFkQuery.join('\n') + '\n' + query.join('\n') + '\n' +  createFkQuery.join('\n');
+        console.log(execQuery);
         if (query.length > 0 || createFkQuery.length > 0 || dropFkQuery.length > 0) {
             if (!queryOnly) {
                 await this.connection.query('BEGIN;');

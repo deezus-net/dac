@@ -350,9 +350,11 @@ export class DbPostgres implements DbInterface {
     /**
      *
      * @param {Db} db
+     * @param queryOnly
+     * @param dropTable
      * @returns {Promise<void>}
      */
-    public async update(db: Db, queryOnly: boolean) {
+    public async update(db: Db, queryOnly: boolean, dropTable = false) {
         const diff = await this.diff(db);
         const query = [];
         const createFkQuery = [];
@@ -507,12 +509,15 @@ export class DbPostgres implements DbInterface {
 
         }
 
-        // delete table
-        for (const tableName of diff.deletedTableNames) {
-            query.push(`DROP TABLE "${tableName}" CASCADE;`);
+        // drop table
+        if(dropTable) {
+            for (const tableName of diff.deletedTableNames) {
+                query.push(`DROP TABLE "${tableName}" CASCADE;`);
+            }
         }
 
         const execQuery = dropFkQuery.join('\n') + '\n' + query.join('\n') + '\n' +  createFkQuery.join('\n');
+        console.log(execQuery);
         if (query.length > 0 || createFkQuery.length > 0 || dropFkQuery.length > 0) {
             if (!queryOnly) {
                 await this.client.query('BEGIN');

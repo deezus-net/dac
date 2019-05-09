@@ -179,7 +179,7 @@ export class Core {
      * @returns {Promise<void>}
      */
     private async update(db: DbInterface) {
-        const query = await db.update(this.db, this.args.query);
+        const query = await db.update(this.db, this.args.query, this.args.dropTable);
         if (query === null) {
             console.log('nothing is changed');
         } else if (this.args.query) {
@@ -286,4 +286,5 @@ interface Args {
     input?: string;
     output?: string;
     query?: boolean;
+    dropTable?: boolean;
 }
