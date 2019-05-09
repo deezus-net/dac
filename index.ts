@@ -174,7 +174,7 @@ const p = require('./package.json');
         .option('-d, --database <database>', 'Database name. (required if not use hosts)')
         .option('-i, --input <input-filepath>', 'Yaml path.')
         .option('-q, --query', 'Create Query.')
-        .option('-dt, --drop', 'Dropping tables not include in yml.')
+        .option('-D, --drop', 'Dropping tables not include in yml.')
         .option('-o, --output <output>', 'Output filename when trim / Output directory when extracting, querying.');
 
     program.parse(process.argv);
