@@ -410,7 +410,7 @@ export class DbPostgres implements DbInterface {
                 }
 
                 // default
-                if ((orgColumn.default || '').toLowerCase() !== (newColumn.default || '').toLocaleLowerCase()) {
+                if ((orgColumn.default || '').toLowerCase() !== (newColumn.default || '').toLowerCase()) {
                     if (newColumn.default) {
                         query.push(`ALTER TABLE`);
                         query.push(`    "${tableName}"`);
