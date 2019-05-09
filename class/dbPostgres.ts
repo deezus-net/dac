@@ -5,7 +5,7 @@ import {DbHost} from '../interfaces/dbHost';
 import {DbInterface} from '../interfaces/dbInterface';
 import {DbTable} from '../interfaces/dbTable';
 import {ColumnType} from './columnType';
-import {checkDbDiff, dbToYaml, distinct, equalColumn, equalIndex, trimDbProperties} from './utility';
+import {checkDbDiff, distinct, trimDbProperties} from './utility';
  
 export class DbPostgres implements DbInterface {
     private client: Client;
@@ -96,7 +96,7 @@ export class DbPostgres implements DbInterface {
      */
     public async extract() {
         const tables: { [key: string]: DbTable } = {};
-        const tData = await this.client.query('SELECT relname FROM "pg_stat_user_tables"');
+        const tData = await this.client.query('SELECT relname FROM "pg_stat_user_tables" WHERE schemaname=\'public\'');
         for (const row of tData.rows) {
             tables[row['relname']] = {
                 columns: {},
@@ -140,7 +140,7 @@ export class DbPostgres implements DbInterface {
                     length: length,
                     notNull: row['is_nullable'] === 'NO'
                 };
-                if (!row['column_default'] && !id) {
+                if (row['column_default'] && !id) {
                     column.default = row['column_default'];
                 }
                 tables[tableName].columns[row['column_name']] = column;
@@ -325,12 +325,13 @@ export class DbPostgres implements DbInterface {
     /**
      *
      * @param {Db} db
+     * @param queryOnly
      * @returns {Promise<boolean>}
      */
     public async reCreate(db: Db, queryOnly: boolean) {
         const query = [];
         const tables = {};
-        const data = await this.client.query('SELECT relname FROM "pg_stat_user_tables"');
+        const data = await this.client.query('SELECT relname FROM "pg_stat_user_tables" WHERE schemaname=\'public\'');
         for (const row of data.rows) {
             query.push(`DROP TABLE "${row['relname']}" CASCADE;`);
         }
@@ -349,9 +350,11 @@ export class DbPostgres implements DbInterface {
     /**
      *
      * @param {Db} db
+     * @param queryOnly
+     * @param dropTable
      * @returns {Promise<void>}
      */
-    public async update(db: Db, queryOnly: boolean) {
+    public async update(db: Db, queryOnly: boolean, dropTable = false) {
         const diff = await this.diff(db);
         const query = [];
         const createFkQuery = [];
@@ -402,13 +405,14 @@ export class DbPostgres implements DbInterface {
                 }
 
                 // not null
-                if (orgColumn.notNull !== newColumn.notNull) {
+                if (!newColumn.pk && orgColumn.notNull !== newColumn.notNull) {
                     query.push(`ALTER TABLE`);
                     query.push(`    "${tableName}"`);
                     query.push(`ALTER COLUMN "${columnName}" ${(newColumn.notNull ? 'SET NOT NULL' : 'DROP NOT NULL')};`);
                 }
 
-                if (orgColumn.default !== newColumn.default) {
+                // default
+                if ((orgColumn.default + '').toLowerCase() !== (newColumn.default + '').toLowerCase()) {
                     if (newColumn.default) {
                         query.push(`ALTER TABLE`);
                         query.push(`    "${tableName}"`);
@@ -505,13 +509,15 @@ export class DbPostgres implements DbInterface {
 
         }
 
-        // delete table
-        for (const tableName of diff.deletedTableNames) {
-            query.push(`DROP TABLE "${tableName}" CASCADE;`);
+        // drop table
+        if(dropTable) {
+            for (const tableName of diff.deletedTableNames) {
+                query.push(`DROP TABLE "${tableName}" CASCADE;`);
+            }
         }
 
         const execQuery = dropFkQuery.join('\n') + '\n' + query.join('\n') + '\n' +  createFkQuery.join('\n');
-        console.log(execQuery)
+        console.log(execQuery);
         if (query.length > 0 || createFkQuery.length > 0 || dropFkQuery.length > 0) {
             if (!queryOnly) {
                 await this.client.query('BEGIN');

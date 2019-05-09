@@ -451,9 +451,10 @@ export class DbMssql implements DbInterface {
      *
      * @param {Db} db
      * @param queryOnly
+     * @param dropTable
      * @returns {Promise<boolean>}
      */
-    public async update(db: Db, queryOnly: boolean) {
+    public async update(db: Db, queryOnly: boolean, dropTable = false) {
         const diff = await this.diff(db);
         const query = [];
         const createFkQuery = [];
@@ -632,8 +633,10 @@ export class DbMssql implements DbInterface {
         }
 
         // drop tables
-        for (const tableName of diff.deletedTableNames) {
-            query.push(`DROP TABLE [dbo].[${tableName}];`);
+        if(dropTable) {
+            for (const tableName of diff.deletedTableNames) {
+                query.push(`DROP TABLE [dbo].[${tableName}];`);
+            }
         }
         
         const execQuery = dropFkQuery.join('\n') + '\n' + query.join('\n') + '\n' + createFkQuery.join('\n');
