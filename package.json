@@ -1,11 +1,11 @@
 {
   "name": "@deezus/dac",
-  "version": "0.0.9",
+  "version": "0.0.10",
   "main": "index.js",
   "repository": "https://github.com/deezus-net/dac.git",
   "author": "deezus <info@deezus.net>",
   "license": "MIT",
-  "private" : false,
+  "private": false,
   "scripts": {
     "watch": "tsc --watch",
     "build": "tsc",
@@ -29,22 +29,22 @@
     "collectCoverage": true
   },
   "dependencies": {
-    "@mysql/xdevapi": "^8.0.12",
-    "commander": "^2.17.1",
-    "js-yaml": "^3.12.0",
-    "mssql": "^4.1.0",
-    "pg": "^7.4.3",
-    "promise-mysql": "^3.3.1"
+    "@mysql/xdevapi": "^8.0.17",
+    "commander": "^3.0.0",
+    "js-yaml": "^3.13.1",
+    "mssql": "^5.1.0",
+    "pg": "^7.12.1",
+    "promise-mysql": "^4.1.0"
   },
   "devDependencies": {
-    "@types/jest": "^23.3.1",
-    "@types/js-yaml": "^3.11.2",
-    "@types/mssql": "^4.0.10",
-    "@types/mysql": "^2.15.5",
-    "@types/pg": "^7.4.10",
-    "jest": "^23.5.0",
-    "ts-jest": "^23.1.4",
-    "tslint": "^5.11.0",
-    "typescript": "^3.0.1"
+    "@types/jest": "^24.0.17",
+    "@types/js-yaml": "^3.12.1",
+    "@types/mssql": "^4.0.16",
+    "@types/mysql": "^2.15.6",
+    "@types/pg": "^7.4.14",
+    "jest": "^24.8.0",
+    "ts-jest": "^24.0.2",
+    "tslint": "^5.18.0",
+    "typescript": "^3.5.3"
   }
 }
