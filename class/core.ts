@@ -10,7 +10,6 @@ import {DbMysql} from './dbMysql';
 import {DbPostgres} from './dbPostgres';
 import {Command, ConsoleColor, DbType} from './define';
 import {dbToYaml, trimDbProperties, yamlToDb} from './utility';
-import ObjectContaining = jasmine.ObjectContaining;
 
 export class Core {
     private dbHosts: DbHost[] = [];

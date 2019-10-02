@@ -3,8 +3,6 @@ import {Db} from '../interfaces/db';
 import {DbColumn} from '../interfaces/dbColumn';
 import { DbDiff } from '../interfaces/dbDiff';
 import {DbIndex} from '../interfaces/dbIndex';
-import {DbTable} from '../interfaces/dbTable';
-import ObjectContaining = jasmine.ObjectContaining;
 
 export const dbToYaml = (db: Db) => {
     // trim property

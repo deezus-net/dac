@@ -6,7 +6,6 @@ import {DbIndex} from '../interfaces/dbIndex';
 import {DbInterface} from '../interfaces/dbInterface';
 import {DbTable} from '../interfaces/dbTable';
 import {checkDbDiff, distinct, trimDbProperties} from './utility';
-import ObjectContaining = jasmine.ObjectContaining;
 
 export class DbMssql implements DbInterface {
 
